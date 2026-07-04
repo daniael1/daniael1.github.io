@@ -1,0 +1,1794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Happy Birthday Nuranis Nabilah 💜</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+
+    <!--
+    =====================================================================
+      HOW TO ADD YOUR OWN PHOTOS & MUSIC (read this before uploading!)
+    =====================================================================
+      Put these files in the SAME FOLDER as this HTML file, named exactly
+      as below (or edit the src="" paths in the code to match your files):
+
+      - character.png   -> Scene 3, the character that says "Choose a gift!!"
+      - photo1.jpg  .. photo5.jpg -> Scene 4, the photos that pop up
+      - song.mp3        -> Scene 4, plays after she picks a gift
+      - bday-8bit.mp3   -> Scene 5, plays inside the letter
+
+      For Scene 6 (the final "Sing of the Birthday" scene), find the
+      <div id="youtubeEmbed"> near the bottom of the HTML body and replace
+      its placeholder content with your YouTube embed code, e.g.:
+
+        <iframe src="https://www.youtube.com/embed/VIDEO_ID"
+                title="YouTube video" frameborder="0" allowfullscreen></iframe>
+
+      The wrapper already makes it responsive on mobile, so you don't need
+      to set width/height yourself.
+
+      If a file is missing, a cute placeholder will show instead, so the
+      site still works while you're gathering your photos/music.
+
+      To change the secret password, edit SECRET_PASSWORD near the top of
+      the <script> at the bottom of this file. It must be 6 digits.
+    =====================================================================
+    -->
+
+    <style>
+        :root {
+            --bg-deep: #1a1025;
+            --bg-panel: #2b1a45;
+            --lilac: #c9a7f5;
+            --lilac-soft: #e4d4ff;
+            --purple-bright: #a259ff;
+            --pink: #ff9de2;
+            --gold: #ffd66b;
+            --danger: #ff6b81;
+            --pixel-border: 4px;
+            --font-pixel: 'Press Start 2P', monospace;
+            --font-body: 'VT323', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background: var(--bg-deep);
+            color: var(--lilac-soft);
+            font-family: var(--font-body);
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+            /* pixel-grid ambient background */
+            body::before {
+                content: "";
+                position: fixed;
+                inset: 0;
+                background-image: radial-gradient(circle at 20% 30%, rgba(162,89,255,0.15) 0, transparent 40%), radial-gradient(circle at 80% 70%, rgba(255,157,226,0.12) 0, transparent 40%), repeating-linear-gradient(0deg, rgba(255,255,255,0.02) 0 2px, transparent 2px 4px);
+                pointer-events: none;
+                z-index: 0;
+            }
+
+        .stars {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .star {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: var(--lilac-soft);
+            opacity: .6;
+            animation: twinkle 2.4s infinite ease-in-out;
+        }
+
+        @keyframes twinkle {
+            0%,100% {
+                opacity: .15;
+            }
+
+            50% {
+                opacity: .9;
+            }
+        }
+
+        .scene {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 16px;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transform: scale(0.94);
+            transition: opacity .5s ease, transform .5s ease;
+            z-index: 1;
+            text-align: center;
+        }
+
+            .scene.active {
+                opacity: 1;
+                visibility: visible;
+                pointer-events: auto;
+                transform: scale(1);
+            }
+
+        .pixel-title {
+            font-family: var(--font-pixel);
+            color: var(--lilac-soft);
+            line-height: 1.8;
+            text-shadow: 3px 3px 0 var(--purple-bright);
+            font-size: clamp(14px, 5vw, 28px);
+            max-width: 92vw;
+        }
+
+        .pixel-box {
+            background: var(--bg-panel);
+            border: var(--pixel-border) solid var(--lilac);
+            box-shadow: 6px 6px 0 var(--purple-bright), inset 0 0 0 4px var(--bg-deep);
+            padding: 20px;
+            image-rendering: pixelated;
+        }
+
+        .btn-8bit {
+            font-family: var(--font-pixel);
+            font-size: clamp(10px, 3vw, 14px);
+            color: var(--bg-deep);
+            background: var(--lilac);
+            border: none;
+            box-shadow: 4px 4px 0 var(--purple-bright);
+            padding: 14px 18px;
+            cursor: pointer;
+            min-height: 44px;
+            letter-spacing: 1px;
+            transition: transform .08s ease;
+            touch-action: manipulation;
+        }
+
+            .btn-8bit:active {
+                transform: translate(3px,3px);
+                box-shadow: 1px 1px 0 var(--purple-bright);
+            }
+
+            .btn-8bit.secondary {
+                background: var(--pink);
+            }
+
+            .btn-8bit.gold {
+                background: var(--gold);
+            }
+
+        .blink {
+            animation: blink 1s steps(1) infinite;
+        }
+
+        @keyframes blink {
+            50% {
+                opacity: 0;
+            }
+        }
+
+        /* ---------- SCENE 1 ---------- */
+        #scene1 .subtitle {
+            margin-top: 18px;
+            font-family: var(--font-body);
+            font-size: clamp(16px, 4.5vw, 22px);
+            color: var(--pink);
+        }
+
+        #scene1 .btn-8bit {
+            margin-top: 34px;
+        }
+
+        .cake-emoji {
+            font-size: clamp(34px, 10vw, 56px);
+            margin-bottom: 10px;
+        }
+
+        /* ---------- SCENE 2 : password ---------- */
+        .pin-display {
+            display: flex;
+            gap: 10px;
+            margin: 22px 0 10px;
+        }
+
+        .pin-slot {
+            width: clamp(28px, 8vw, 40px);
+            height: clamp(34px, 10vw, 48px);
+            border: 3px solid var(--lilac);
+            background: var(--bg-deep);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-pixel);
+            font-size: clamp(14px, 4vw, 20px);
+            color: var(--lilac-soft);
+        }
+
+            .pin-slot.filled {
+                background: var(--purple-bright);
+            }
+
+        .hint {
+            font-size: clamp(13px, 3.6vw, 17px);
+            color: var(--gold);
+            margin-bottom: 6px;
+        }
+
+        .error-msg {
+            color: var(--danger);
+            font-family: var(--font-pixel);
+            font-size: 11px;
+            min-height: 18px;
+            margin-top: 6px;
+        }
+
+        .shake {
+            animation: shake .4s;
+        }
+
+        @keyframes shake {
+            0%,100% {
+                transform: translateX(0);
+            }
+
+            20% {
+                transform: translateX(-8px);
+            }
+
+            40% {
+                transform: translateX(8px);
+            }
+
+            60% {
+                transform: translateX(-6px);
+            }
+
+            80% {
+                transform: translateX(6px);
+            }
+        }
+
+        .keypad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 18px;
+            width: min(280px, 82vw);
+        }
+
+        .key {
+            font-family: var(--font-pixel);
+            font-size: 16px;
+            background: var(--bg-panel);
+            color: var(--lilac-soft);
+            border: 3px solid var(--lilac);
+            box-shadow: 3px 3px 0 var(--purple-bright);
+            padding: 14px 0;
+            cursor: pointer;
+            min-height: 48px;
+        }
+
+            .key:active {
+                transform: translate(2px,2px);
+                box-shadow: 1px 1px 0 var(--purple-bright);
+            }
+
+            .key.wide {
+                grid-column: span 1;
+            }
+
+        /* ---------- SCENE 3 : gift ---------- */
+        .character-wrap {
+            width: clamp(120px, 34vw, 180px);
+            height: clamp(120px, 34vw, 180px);
+            border: 4px solid var(--lilac);
+            box-shadow: 6px 6px 0 var(--purple-bright);
+            background: var(--bg-panel);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            margin-bottom: 6px;
+        }
+
+            .character-wrap img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                image-rendering: pixelated;
+            }
+
+        .character-fallback {
+            font-size: clamp(48px, 14vw, 80px);
+        }
+
+        .speech-bubble {
+            position: relative;
+            background: var(--lilac-soft);
+            color: var(--bg-deep);
+            font-family: var(--font-pixel);
+            font-size: clamp(11px, 3.4vw, 15px);
+            padding: 14px 16px;
+            border: 3px solid var(--bg-deep);
+            margin-bottom: 26px;
+            max-width: 78vw;
+        }
+
+            .speech-bubble::after {
+                content: "";
+                position: absolute;
+                top: -14px;
+                left: 50%;
+                transform: translateX(-50%);
+                border-width: 0 10px 14px 10px;
+                border-style: solid;
+                border-color: transparent transparent var(--lilac-soft) transparent;
+            }
+
+        .gifts-row {
+            display: flex;
+            gap: 18px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 6px;
+        }
+
+        .gift-box {
+            font-size: clamp(46px, 13vw, 70px);
+            cursor: pointer;
+            transition: transform .2s ease;
+            filter: drop-shadow(4px 4px 0 var(--purple-bright));
+        }
+
+            .gift-box:hover, .gift-box:active {
+                transform: translateY(-6px) scale(1.05);
+            }
+
+            .gift-box.pop {
+                animation: popGift .5s ease forwards;
+            }
+
+        @keyframes popGift {
+            0% {
+                transform: scale(1);
+            }
+
+            40% {
+                transform: scale(1.4) rotate(8deg);
+            }
+
+            100% {
+                transform: scale(0) rotate(20deg);
+                opacity: 0;
+            }
+        }
+
+        /* ---------- SCENE 4 : photos ---------- */
+        #scene4 {
+            overflow-y: auto;
+        }
+
+        .photo-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+            max-width: 480px;
+            width: 100%;
+            margin: 10px auto 20px;
+        }
+
+        .polaroid {
+            background: #fff;
+            padding: 8px 8px 22px;
+            box-shadow: 5px 5px 0 var(--purple-bright);
+            transform: rotate(var(--r, 0deg)) scale(0);
+            animation: popIn .5s ease forwards;
+            animation-delay: var(--d, 0s);
+        }
+
+            .polaroid img {
+                width: 100%;
+                aspect-ratio: 1/1;
+                object-fit: cover;
+                display: block;
+                image-rendering: pixelated;
+                background: #ddd;
+            }
+
+            .polaroid .cap {
+                font-family: var(--font-pixel);
+                font-size: 9px;
+                color: #444;
+                text-align: center;
+                margin-top: 6px;
+            }
+
+        @keyframes popIn {
+            to {
+                transform: rotate(var(--r,0deg)) scale(1);
+            }
+        }
+
+        .photo-fallback {
+            width: 100%;
+            aspect-ratio: 1/1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-panel);
+            color: var(--pink);
+            font-size: 34px;
+        }
+
+        /* ---------- SCENE 5 : letter ---------- */
+        .envelope {
+            width: clamp(180px, 55vw, 260px);
+            cursor: pointer;
+            position: relative;
+            filter: drop-shadow(6px 6px 0 var(--purple-bright));
+        }
+
+            .envelope .env-body {
+                font-size: clamp(90px, 26vw, 140px);
+                line-height: 1;
+            }
+
+        .letter-card {
+            background: var(--lilac-soft);
+            color: var(--bg-deep);
+            max-width: 520px;
+            width: 92vw;
+            max-height: 78vh;
+            overflow-y: auto;
+            padding: 26px 22px;
+            border: 4px solid var(--bg-deep);
+            box-shadow: 8px 8px 0 var(--purple-bright);
+            font-family: var(--font-body);
+            font-size: clamp(16px, 4.2vw, 20px);
+            line-height: 1.5;
+            display: none;
+            text-align: left;
+            position: relative;
+            z-index: 3;
+        }
+
+            .letter-card.show {
+                display: block;
+                animation: popIn2 .4s ease;
+            }
+
+        @keyframes popIn2 {
+            from {
+                transform: scale(.85);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .letter-card h3 {
+            font-family: var(--font-pixel);
+            font-size: clamp(12px, 3.6vw, 16px);
+            color: var(--purple-bright);
+            margin-top: 0;
+        }
+
+        .signature {
+            text-align: right;
+            font-family: var(--font-pixel);
+            font-size: 12px;
+            margin-top: 18px;
+            color: var(--purple-bright);
+        }
+
+        .cake-rain-item {
+            position: fixed;
+            top: -40px;
+            font-size: 26px;
+            pointer-events: none;
+            z-index: 2;
+            animation-name: fall;
+            animation-timing-function: linear;
+        }
+
+        @keyframes fall {
+            to {
+                transform: translateY(115vh) rotate(360deg);
+            }
+        }
+
+        .hidden-audio {
+            display: none;
+        }
+
+        /* ---------- SCENE 6 : youtube embed ---------- */
+        .video-wrap {
+            width: min(92vw, 560px);
+            aspect-ratio: 16 / 9;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+            .video-wrap iframe,
+            .video-wrap video,
+            .video-wrap embed {
+                width: 100%;
+                height: 100%;
+                border: none;
+                display: block;
+            }
+
+        .video-placeholder {
+            font-family: var(--font-pixel);
+            font-size: clamp(10px, 3vw, 13px);
+            color: var(--lilac-soft);
+            line-height: 1.8;
+        }
+
+        @media (max-width: 380px) {
+            .photo-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="stars" id="stars"></div>
+
+    <!-- ============ SCENE 1 : Title wish ============ -->
+    <section class="scene active" id="scene1">
+        <div class="cake-emoji">🎂🎉</div>
+        <h1 class="pixel-title">HAPPY BIRTHDAY<br>KU NURANIS NABILAH!</h1>
+        <p class="subtitle">a little 8-bit adventure made just for you...</p>
+        <button class="btn-8bit" id="toScene2">▶ PRESS START</button>
+    </section>
+
+    <!-- ============ SCENE 2 : Password ============ -->
+    <section class="scene" id="scene2">
+        <h2 class="pixel-title" style="font-size:clamp(13px,4vw,18px)">🔒 GUESS THE PASSWORD</h2>
+        <p class="hint">Hint: her birthday... and it's greater than 06/07/02 💜</p>
+
+        <div class="pin-display" id="pinDisplay">
+            <div class="pin-slot"></div>
+            <div class="pin-slot"></div>
+            <div class="pin-slot"></div>
+            <div class="pin-slot"></div>
+            <div class="pin-slot"></div>
+            <div class="pin-slot"></div>
+        </div>
+        <div class="error-msg" id="pinError"></div>
+
+        <div class="keypad" id="keypad">
+            <button class="key" data-num="1">1</button>
+            <button class="key" data-num="2">2</button>
+            <button class="key" data-num="3">3</button>
+            <button class="key" data-num="4">4</button>
+            <button class="key" data-num="5">5</button>
+            <button class="key" data-num="6">6</button>
+            <button class="key" data-num="7">7</button>
+            <button class="key" data-num="8">8</button>
+            <button class="key" data-num="9">9</button>
+            <button class="key" id="keyDel">⌫</button>
+            <button class="key" data-num="0">0</button>
+            <button class="key" id="keyEnter">✓</button>
+        </div>
+    </section>
+
+    <!-- ============ SCENE 3 : Choose a gift ============ -->
+    <section class="scene" id="scene3">
+        <div class="character-wrap">
+            <img src="character.png" alt="character" id="characterImg"
+                 onerror="this.style.display='none'; document.getElementById('charFallback').style.display='flex';">
+            <div class="character-fallback" id="charFallback" style="display:none;">🧑‍🎤</div>
+        </div>
+        <div class="speech-bubble">CHOOSE A GIFT!!</div>
+        <div class="gifts-row" id="giftsRow">
+            <div class="gift-box" data-gift="1">🎁</div>
+            <div class="gift-box" data-gift="2">🎁</div>
+            <div class="gift-box" data-gift="3">🎁</div>
+        </div>
+    </section>
+
+    <!-- ============ SCENE 4 : Photos ============ -->
+    <section class="scene" id="scene4">
+        <h2 class="pixel-title" style="font-size:clamp(13px,4vw,18px)">✨ SURPRISE! ✨</h2>
+        <div class="photo-grid" id="photoGrid"></div>
+        <button class="btn-8bit gold" id="acceptGiftBtn" style="display:none;">ACCEPT GIFT</button>
+        <audio class="hidden-audio" id="giftSong" src="song.mp3" loop></audio>
+    </section>
+
+    <!-- ============ SCENE 5 : Letter ============ -->
+    <section class="scene" id="scene5">
+        <div class="envelope" id="envelope">
+            <div class="env-body">✉️</div>
+            <p class="pixel-title" style="font-size:11px;margin-top:6px;" class="blink">TAP TO OPEN</p>
+        </div>
+
+        <div class="letter-card" id="letterCard">
+            <h3>To my dearest Nabilah,</h3>
+            <p>
+                Happy birthday to the girl who makes every ordinary day feel like a level-up.
+                I made this whole silly little game just to see you smile while you played it —
+                that already made today worth it.
+            </p>
+            <p>
+                Thank you for being patient, kind, and endlessly you. I hope this year gives you
+                everything you've been working for, and a few surprises you didn't even know to
+                wish for.
+            </p>
+            <p>
+                I love you more than any number of pixels could ever show. 💜
+            </p>
+            <div class="signature">— always yours</div>
+
+            <button class="btn-8bit gold" id="toScene6" style="margin-top:20px;">🎵 SING OF THE BIRTHDAY 🎵</button>
+        </div>
+
+        <audio class="hidden-audio" id="letterSong" src="bday-8bit.mp3" loop></audio>
+    </section>
+
+    <!-- ============ SCENE 6 : Birthday song (YouTube) ============ -->
+    <section class="scene" id="scene6">
+        <h2 class="pixel-title" style="font-size:clamp(13px,4vw,18px)">🎶 HAPPY BIRTHDAY TO YOU 🎶</h2>
+
+        <!--
+          Paste your YouTube embed code inside the div below (id="youtubeEmbed").
+          Example: an iframe like
+          <iframe src="https://www.youtube.com/embed/VIDEO_ID" ...></iframe>
+          The wrapper below keeps it responsive/mobile-friendly automatically.
+        -->
+        <div class="video-wrap pixel-box" id="youtubeEmbed">
+            <div class="video-placeholder">📺<br>your birthday song video<br>will play here</div>
+        </div>
+    </section>
+
+    <script>
+        /* =====================================================================
+           CONFIG — edit these to personalise the site
+           ===================================================================== */
+        const SECRET_PASSWORD = "070302"; // <-- change to her real 6-digit birthday (DDMMYY etc)
+        const NUM_PHOTOS = 5;              // how many photoN.jpg files you plan to add
+
+        /* =====================================================================
+           Scene manager
+           ===================================================================== */
+        const scenes = ["scene1", "scene2", "scene3", "scene4", "scene5", "scene6"];
+        function goToScene(id) {
+            scenes.forEach(s => document.getElementById(s).classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        /* =====================================================================
+           Ambient starfield (scene1 background flavor)
+           ===================================================================== */
+        (function makeStars() {
+            const wrap = document.getElementById('stars');
+            for (let i = 0; i < 40; i++) {
+                const s = document.createElement('div');
+                s.className = 'star';
+                s.style.left = Math.random() * 100 + 'vw';
+                s.style.top = Math.random() * 100 + 'vh';
+                s.style.animationDelay = (Math.random() * 2) + 's';
+                wrap.appendChild(s);
+            }
+        })();
+
+        /* =====================================================================
+           8-bit click beep via Web Audio API (no file needed)
+           ===================================================================== */
+        let audioCtx;
+        function beep(freq = 440, dur = 0.08, type = 'square') {
+            try {
+                audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+                osc.connect(gain).connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + dur);
+            } catch (e) { /* audio not available, ignore */ }
+        }
+
+        /* =====================================================================
+           Scene 1 -> 2
+           ===================================================================== */
+        document.getElementById('toScene2').addEventListener('click', () => {
+            beep(523, 0.1);
+            goToScene('scene2');
+        });
+
+        /* =====================================================================
+           Scene 2 : password keypad
+           ===================================================================== */
+        let pinValue = "";
+        const pinSlots = document.querySelectorAll('.pin-slot');
+        const pinError = document.getElementById('pinError');
+        const pinDisplay = document.getElementById('pinDisplay');
+
+        function renderPin() {
+            pinSlots.forEach((slot, i) => {
+                if (i < pinValue.length) {
+                    slot.textContent = "•";
+                    slot.classList.add('filled');
+                } else {
+                    slot.textContent = "";
+                    slot.classList.remove('filled');
+                }
+            });
+        }
+
+        document.getElementById('keypad').addEventListener('click', (e) => {
+            const btn = e.target.closest('.key');
+            if (!btn) return;
+
+            if (btn.id === 'keyDel') {
+                beep(200, 0.06, 'triangle');
+                pinValue = pinValue.slice(0, -1);
+                pinError.textContent = "";
+                renderPin();
+                return;
+            }
+
+            if (btn.id === 'keyEnter') {
+                beep(300, 0.09, 'triangle');
+                if (pinValue.length < 6) {
+                    pinError.textContent = "ENTER 6 DIGITS!";
+                    pinDisplay.classList.add('shake');
+                    setTimeout(() => pinDisplay.classList.remove('shake'), 400);
+                    return;
+                }
+                if (pinValue === SECRET_PASSWORD) {
+                    pinError.style.color = "var(--gold)";
+                    pinError.textContent = "CORRECT! 🎉";
+                    beep(659, 0.12);
+                    setTimeout(() => beep(880, 0.15), 120);
+                    setTimeout(() => goToScene('scene3'), 700);
+                } else {
+                    pinError.style.color = "var(--danger)";
+                    pinError.textContent = "WRONG PASSWORD, TRY AGAIN!";
+                    pinDisplay.classList.add('shake');
+                    beep(120, 0.2, 'sawtooth');
+                    setTimeout(() => pinDisplay.classList.remove('shake'), 400);
+                    pinValue = "";
+                    renderPin();
+                }
+                return;
+            }
+
+            // number key
+            if (btn.dataset.num !== undefined && pinValue.length < 6) {
+                beep(440, 0.06);
+                pinValue += btn.dataset.num;
+                pinError.textContent = "";
+                renderPin();
+            }
+        });
+
+        /* =====================================================================
+           Scene 3 : gifts (all identical — any choice leads onward)
+           ===================================================================== */
+        document.getElementById('giftsRow').addEventListener('click', (e) => {
+            const gift = e.target.closest('.gift-box');
+            if (!gift) return;
+            beep(523, 0.1);
+            gift.classList.add('pop');
+            buildPhotoGrid();
+            setTimeout(() => goToScene('scene4'), 550);
+        });
+
+        /* =====================================================================
+           Scene 4 : photo grid + song
+           ===================================================================== */
+        let photosBuilt = false;
+        function buildPhotoGrid() {
+            if (photosBuilt) return;
+            photosBuilt = true;
+            const grid = document.getElementById('photoGrid');
+            const rotations = [-6, 4, -3, 6, -4, 3];
+            for (let i = 1; i <= NUM_PHOTOS; i++) {
+                const card = document.createElement('div');
+                card.className = 'polaroid';
+                card.style.setProperty('--r', rotations[(i - 1) % rotations.length] + 'deg');
+                card.style.setProperty('--d', (i * 0.15) + 's');
+
+                const img = document.createElement('img');
+                img.src = `photo${i}.jpg`;
+                img.alt = `photo ${i}`;
+                img.onerror = function () {
+                    const fb = document.createElement('div');
+                    fb.className = 'photo-fallback';
+                    fb.textContent = '💜';
+                    this.replaceWith(fb);
+                };
+                card.appendChild(img);
+
+                const cap = document.createElement('div');
+                cap.className = 'cap';
+                cap.textContent = 'photo #' + i;
+                card.appendChild(cap);
+
+                grid.appendChild(card);
+            }
+
+            // try to play the gift song
+            const song = document.getElementById('giftSong');
+            song.play().catch(() => { /* autoplay might be blocked until user gesture, that's fine */ });
+
+            // show accept button after the photos pop in
+            setTimeout(() => {
+                document.getElementById('acceptGiftBtn').style.display = 'inline-block';
+            }, NUM_PHOTOS * 150 + 500);
+        }
+
+        document.getElementById('acceptGiftBtn').addEventListener('click', () => {
+            beep(659, 0.1);
+            goToScene('scene5');
+        });
+
+        /* =====================================================================
+           Scene 5 : envelope + letter + cake rain
+           ===================================================================== */
+        let cakeRainInterval = null;
+        function startCakeRain() {
+            if (cakeRainInterval) return;
+            cakeRainInterval = setInterval(() => {
+                const cake = document.createElement('div');
+                cake.className = 'cake-rain-item';
+                cake.textContent = ['🎂', '🧁', '🍰'][Math.floor(Math.random() * 3)];
+                cake.style.left = Math.random() * 100 + 'vw';
+                const duration = 3 + Math.random() * 2.5;
+                cake.style.animationDuration = duration + 's';
+                cake.style.fontSize = (18 + Math.random() * 20) + 'px';
+                document.body.appendChild(cake);
+                setTimeout(() => cake.remove(), duration * 1000 + 200);
+            }, 220);
+        }
+
+        document.getElementById('envelope').addEventListener('click', function () {
+            beep(392, 0.1);
+            setTimeout(() => beep(523, 0.12), 100);
+            this.style.display = 'none';
+            document.getElementById('letterCard').classList.add('show');
+            startCakeRain();
+            const song = document.getElementById('letterSong');
+            song.play().catch(() => { });
+        });
+
+        /* =====================================================================
+           Scene 5 -> 6 : sing of the birthday
+           ===================================================================== */
+        document.getElementById('toScene6').addEventListener('click', () => {
+            beep(587, 0.1);
+            // stop the 8-bit letter song so it doesn't overlap the YouTube video
+            const letterSong = document.getElementById('letterSong');
+            letterSong.pause();
+            goToScene('scene6');
+        });
+    </script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Happy Birthday Nuranis Nabilah 💜</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+
+    <!--
+    =====================================================================
+      HOW TO ADD YOUR OWN PHOTOS & MUSIC (read this before uploading!)
+    =====================================================================
+      Put these files in the SAME FOLDER as this HTML file, named exactly
+      as below (or edit the src="" paths in the code to match your files):
+
+      - character.png   -> Scene 3, the character that says "Choose a gift!!"
+      - photo1.jpg  .. photo5.jpg -> Scene 4, the photos that pop up
+      - song.mp3        -> Scene 4, plays after she picks a gift
+      - bday-8bit.mp3   -> Scene 5, plays inside the letter
+
+      For Scene 6 (the final "Sing of the Birthday" scene), find the
+      <div id="youtubeEmbed"> near the bottom of the HTML body and replace
+      its placeholder content with your YouTube embed code, e.g.:
+
+        <iframe src="https://www.youtube.com/embed/VIDEO_ID"
+                title="YouTube video" frameborder="0" allowfullscreen></iframe>
+
+      The wrapper already makes it responsive on mobile, so you don't need
+      to set width/height yourself.
+
+      If a file is missing, a cute placeholder will show instead, so the
+      site still works while you're gathering your photos/music.
+
+      To change the secret password, edit SECRET_PASSWORD near the top of
+      the <script> at the bottom of this file. It must be 6 digits.
+    =====================================================================
+    -->
+
+    <style>
+        :root {
+            --bg-deep: #1a1025;
+            --bg-panel: #2b1a45;
+            --lilac: #c9a7f5;
+            --lilac-soft: #e4d4ff;
+            --purple-bright: #a259ff;
+            --pink: #ff9de2;
+            --gold: #ffd66b;
+            --danger: #ff6b81;
+            --pixel-border: 4px;
+            --font-pixel: 'Press Start 2P', monospace;
+            --font-body: 'VT323', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background: var(--bg-deep);
+            color: var(--lilac-soft);
+            font-family: var(--font-body);
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+            /* pixel-grid ambient background */
+            body::before {
+                content: "";
+                position: fixed;
+                inset: 0;
+                background-image: radial-gradient(circle at 20% 30%, rgba(162,89,255,0.15) 0, transparent 40%), radial-gradient(circle at 80% 70%, rgba(255,157,226,0.12) 0, transparent 40%), repeating-linear-gradient(0deg, rgba(255,255,255,0.02) 0 2px, transparent 2px 4px);
+                pointer-events: none;
+                z-index: 0;
+            }
+
+        .stars {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .star {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: var(--lilac-soft);
+            opacity: .6;
+            animation: twinkle 2.4s infinite ease-in-out;
+        }
+
+        @keyframes twinkle {
+            0%,100% {
+                opacity: .15;
+            }
+
+            50% {
+                opacity: .9;
+            }
+        }
+
+        .scene {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 16px;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transform: scale(0.94);
+            transition: opacity .5s ease, transform .5s ease;
+            z-index: 1;
+            text-align: center;
+        }
+
+            .scene.active {
+                opacity: 1;
+                visibility: visible;
+                pointer-events: auto;
+                transform: scale(1);
+            }
+
+        .pixel-title {
+            font-family: var(--font-pixel);
+            color: var(--lilac-soft);
+            line-height: 1.8;
+            text-shadow: 3px 3px 0 var(--purple-bright);
+            font-size: clamp(14px, 5vw, 28px);
+            max-width: 92vw;
+        }
+
+        .pixel-box {
+            background: var(--bg-panel);
+            border: var(--pixel-border) solid var(--lilac);
+            box-shadow: 6px 6px 0 var(--purple-bright), inset 0 0 0 4px var(--bg-deep);
+            padding: 20px;
+            image-rendering: pixelated;
+        }
+
+        .btn-8bit {
+            font-family: var(--font-pixel);
+            font-size: clamp(10px, 3vw, 14px);
+            color: var(--bg-deep);
+            background: var(--lilac);
+            border: none;
+            box-shadow: 4px 4px 0 var(--purple-bright);
+            padding: 14px 18px;
+            cursor: pointer;
+            min-height: 44px;
+            letter-spacing: 1px;
+            transition: transform .08s ease;
+            touch-action: manipulation;
+        }
+
+            .btn-8bit:active {
+                transform: translate(3px,3px);
+                box-shadow: 1px 1px 0 var(--purple-bright);
+            }
+
+            .btn-8bit.secondary {
+                background: var(--pink);
+            }
+
+            .btn-8bit.gold {
+                background: var(--gold);
+            }
+
+        .blink {
+            animation: blink 1s steps(1) infinite;
+        }
+
+        @keyframes blink {
+            50% {
+                opacity: 0;
+            }
+        }
+
+        /* ---------- SCENE 1 ---------- */
+        #scene1 .subtitle {
+            margin-top: 18px;
+            font-family: var(--font-body);
+            font-size: clamp(16px, 4.5vw, 22px);
+            color: var(--pink);
+        }
+
+        #scene1 .btn-8bit {
+            margin-top: 34px;
+        }
+
+        .cake-emoji {
+            font-size: clamp(34px, 10vw, 56px);
+            margin-bottom: 10px;
+        }
+
+        /* ---------- SCENE 2 : password ---------- */
+        .pin-display {
+            display: flex;
+            gap: 10px;
+            margin: 22px 0 10px;
+        }
+
+        .pin-slot {
+            width: clamp(28px, 8vw, 40px);
+            height: clamp(34px, 10vw, 48px);
+            border: 3px solid var(--lilac);
+            background: var(--bg-deep);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-pixel);
+            font-size: clamp(14px, 4vw, 20px);
+            color: var(--lilac-soft);
+        }
+
+            .pin-slot.filled {
+                background: var(--purple-bright);
+            }
+
+        .hint {
+            font-size: clamp(13px, 3.6vw, 17px);
+            color: var(--gold);
+            margin-bottom: 6px;
+        }
+
+        .error-msg {
+            color: var(--danger);
+            font-family: var(--font-pixel);
+            font-size: 11px;
+            min-height: 18px;
+            margin-top: 6px;
+        }
+
+        .shake {
+            animation: shake .4s;
+        }
+
+        @keyframes shake {
+            0%,100% {
+                transform: translateX(0);
+            }
+
+            20% {
+                transform: translateX(-8px);
+            }
+
+            40% {
+                transform: translateX(8px);
+            }
+
+            60% {
+                transform: translateX(-6px);
+            }
+
+            80% {
+                transform: translateX(6px);
+            }
+        }
+
+        .keypad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 18px;
+            width: min(280px, 82vw);
+        }
+
+        .key {
+            font-family: var(--font-pixel);
+            font-size: 16px;
+            background: var(--bg-panel);
+            color: var(--lilac-soft);
+            border: 3px solid var(--lilac);
+            box-shadow: 3px 3px 0 var(--purple-bright);
+            padding: 14px 0;
+            cursor: pointer;
+            min-height: 48px;
+        }
+
+            .key:active {
+                transform: translate(2px,2px);
+                box-shadow: 1px 1px 0 var(--purple-bright);
+            }
+
+            .key.wide {
+                grid-column: span 1;
+            }
+
+        /* ---------- SCENE 3 : gift ---------- */
+        .character-wrap {
+            width: clamp(120px, 34vw, 180px);
+            height: clamp(120px, 34vw, 180px);
+            border: 4px solid var(--lilac);
+            box-shadow: 6px 6px 0 var(--purple-bright);
+            background: var(--bg-panel);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            margin-bottom: 6px;
+        }
+
+            .character-wrap img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                image-rendering: pixelated;
+            }
+
+        .character-fallback {
+            font-size: clamp(48px, 14vw, 80px);
+        }
+
+        .speech-bubble {
+            position: relative;
+            background: var(--lilac-soft);
+            color: var(--bg-deep);
+            font-family: var(--font-pixel);
+            font-size: clamp(11px, 3.4vw, 15px);
+            padding: 14px 16px;
+            border: 3px solid var(--bg-deep);
+            margin-bottom: 26px;
+            max-width: 78vw;
+        }
+
+            .speech-bubble::after {
+                content: "";
+                position: absolute;
+                top: -14px;
+                left: 50%;
+                transform: translateX(-50%);
+                border-width: 0 10px 14px 10px;
+                border-style: solid;
+                border-color: transparent transparent var(--lilac-soft) transparent;
+            }
+
+        .gifts-row {
+            display: flex;
+            gap: 18px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 6px;
+        }
+
+        .gift-box {
+            font-size: clamp(46px, 13vw, 70px);
+            cursor: pointer;
+            transition: transform .2s ease;
+            filter: drop-shadow(4px 4px 0 var(--purple-bright));
+        }
+
+            .gift-box:hover, .gift-box:active {
+                transform: translateY(-6px) scale(1.05);
+            }
+
+            .gift-box.pop {
+                animation: popGift .5s ease forwards;
+            }
+
+        @keyframes popGift {
+            0% {
+                transform: scale(1);
+            }
+
+            40% {
+                transform: scale(1.4) rotate(8deg);
+            }
+
+            100% {
+                transform: scale(0) rotate(20deg);
+                opacity: 0;
+            }
+        }
+
+        /* ---------- SCENE 4 : photos ---------- */
+        #scene4 {
+            overflow-y: auto;
+        }
+
+        .photo-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+            max-width: 480px;
+            width: 100%;
+            margin: 10px auto 20px;
+        }
+
+        .polaroid {
+            background: #fff;
+            padding: 8px 8px 22px;
+            box-shadow: 5px 5px 0 var(--purple-bright);
+            transform: rotate(var(--r, 0deg)) scale(0);
+            animation: popIn .5s ease forwards;
+            animation-delay: var(--d, 0s);
+        }
+
+            .polaroid img {
+                width: 100%;
+                aspect-ratio: 1/1;
+                object-fit: cover;
+                display: block;
+                image-rendering: pixelated;
+                background: #ddd;
+            }
+
+            .polaroid .cap {
+                font-family: var(--font-pixel);
+                font-size: 9px;
+                color: #444;
+                text-align: center;
+                margin-top: 6px;
+            }
+
+        @keyframes popIn {
+            to {
+                transform: rotate(var(--r,0deg)) scale(1);
+            }
+        }
+
+        .photo-fallback {
+            width: 100%;
+            aspect-ratio: 1/1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-panel);
+            color: var(--pink);
+            font-size: 34px;
+        }
+
+        /* ---------- SCENE 5 : letter ---------- */
+        .envelope {
+            width: clamp(180px, 55vw, 260px);
+            cursor: pointer;
+            position: relative;
+            filter: drop-shadow(6px 6px 0 var(--purple-bright));
+        }
+
+            .envelope .env-body {
+                font-size: clamp(90px, 26vw, 140px);
+                line-height: 1;
+            }
+
+        .letter-card {
+            background: var(--lilac-soft);
+            color: var(--bg-deep);
+            max-width: 520px;
+            width: 92vw;
+            max-height: 78vh;
+            overflow-y: auto;
+            padding: 26px 22px;
+            border: 4px solid var(--bg-deep);
+            box-shadow: 8px 8px 0 var(--purple-bright);
+            font-family: var(--font-body);
+            font-size: clamp(16px, 4.2vw, 20px);
+            line-height: 1.5;
+            display: none;
+            text-align: left;
+            position: relative;
+            z-index: 3;
+        }
+
+            .letter-card.show {
+                display: block;
+                animation: popIn2 .4s ease;
+            }
+
+        @keyframes popIn2 {
+            from {
+                transform: scale(.85);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .letter-card h3 {
+            font-family: var(--font-pixel);
+            font-size: clamp(12px, 3.6vw, 16px);
+            color: var(--purple-bright);
+            margin-top: 0;
+        }
+
+        .signature {
+            text-align: right;
+            font-family: var(--font-pixel);
+            font-size: 12px;
+            margin-top: 18px;
+            color: var(--purple-bright);
+        }
+
+        .cake-rain-item {
+            position: fixed;
+            top: -40px;
+            font-size: 26px;
+            pointer-events: none;
+            z-index: 2;
+            animation-name: fall;
+            animation-timing-function: linear;
+        }
+
+        @keyframes fall {
+            to {
+                transform: translateY(115vh) rotate(360deg);
+            }
+        }
+
+        .hidden-audio {
+            display: none;
+        }
+
+        /* ---------- SCENE 6 : youtube embed ---------- */
+        .video-wrap {
+            width: min(92vw, 560px);
+            aspect-ratio: 16 / 9;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+            .video-wrap iframe,
+            .video-wrap video,
+            .video-wrap embed {
+                width: 100%;
+                height: 100%;
+                border: none;
+                display: block;
+            }
+
+        .video-placeholder {
+            font-family: var(--font-pixel);
+            font-size: clamp(10px, 3vw, 13px);
+            color: var(--lilac-soft);
+            line-height: 1.8;
+        }
+
+        @media (max-width: 380px) {
+            .photo-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="stars" id="stars"></div>
+
+    <!-- ============ SCENE 1 : Title wish ============ -->
+    <section class="scene active" id="scene1">
+        <div class="cake-emoji">🎂🎉</div>
+        <h1 class="pixel-title">HAPPY BIRTHDAY<br>KU NURANIS NABILAH!</h1>
+        <p class="subtitle">a little 8-bit adventure made just for you...</p>
+        <button class="btn-8bit" id="toScene2">▶ PRESS START</button>
+    </section>
+
+    <!-- ============ SCENE 2 : Password ============ -->
+    <section class="scene" id="scene2">
+        <h2 class="pixel-title" style="font-size:clamp(13px,4vw,18px)">🔒 GUESS THE PASSWORD</h2>
+        <p class="hint">Hint: her birthday... and it's greater than 06/07/02 💜</p>
+
+        <div class="pin-display" id="pinDisplay">
+            <div class="pin-slot"></div>
+            <div class="pin-slot"></div>
+            <div class="pin-slot"></div>
+            <div class="pin-slot"></div>
+            <div class="pin-slot"></div>
+            <div class="pin-slot"></div>
+        </div>
+        <div class="error-msg" id="pinError"></div>
+
+        <div class="keypad" id="keypad">
+            <button class="key" data-num="1">1</button>
+            <button class="key" data-num="2">2</button>
+            <button class="key" data-num="3">3</button>
+            <button class="key" data-num="4">4</button>
+            <button class="key" data-num="5">5</button>
+            <button class="key" data-num="6">6</button>
+            <button class="key" data-num="7">7</button>
+            <button class="key" data-num="8">8</button>
+            <button class="key" data-num="9">9</button>
+            <button class="key" id="keyDel">⌫</button>
+            <button class="key" data-num="0">0</button>
+            <button class="key" id="keyEnter">✓</button>
+        </div>
+    </section>
+
+    <!-- ============ SCENE 3 : Choose a gift ============ -->
+    <section class="scene" id="scene3">
+        <div class="character-wrap">
+            <img src="character.png" alt="character" id="characterImg"
+                 onerror="this.style.display='none'; document.getElementById('charFallback').style.display='flex';">
+            <div class="character-fallback" id="charFallback" style="display:none;">🧑‍🎤</div>
+        </div>
+        <div class="speech-bubble">CHOOSE A GIFT!!</div>
+        <div class="gifts-row" id="giftsRow">
+            <div class="gift-box" data-gift="1">🎁</div>
+            <div class="gift-box" data-gift="2">🎁</div>
+            <div class="gift-box" data-gift="3">🎁</div>
+        </div>
+    </section>
+
+    <!-- ============ SCENE 4 : Photos ============ -->
+    <section class="scene" id="scene4">
+        <h2 class="pixel-title" style="font-size:clamp(13px,4vw,18px)">✨ SURPRISE! ✨</h2>
+        <div class="photo-grid" id="photoGrid"></div>
+        <button class="btn-8bit gold" id="acceptGiftBtn" style="display:none;">ACCEPT GIFT</button>
+        <audio class="hidden-audio" id="giftSong" src="song.mp3" loop></audio>
+    </section>
+
+    <!-- ============ SCENE 5 : Letter ============ -->
+    <section class="scene" id="scene5">
+        <div class="envelope" id="envelope">
+            <div class="env-body">✉️</div>
+            <p class="pixel-title" style="font-size:11px;margin-top:6px;" class="blink">TAP TO OPEN</p>
+        </div>
+
+        <div class="letter-card" id="letterCard">
+            <h3>To my dearest Nabilah,</h3>
+            <p>
+                Happy birthday to the girl who makes every ordinary day feel like a level-up.
+                I made this whole silly little game just to see you smile while you played it —
+                that already made today worth it.
+            </p>
+            <p>
+                Thank you for being patient, kind, and endlessly you. I hope this year gives you
+                everything you've been working for, and a few surprises you didn't even know to
+                wish for.
+            </p>
+            <p>
+                I love you more than any number of pixels could ever show. 💜
+            </p>
+            <div class="signature">— always yours</div>
+
+            <button class="btn-8bit gold" id="toScene6" style="margin-top:20px;">🎵 SING OF THE BIRTHDAY 🎵</button>
+        </div>
+
+        <audio class="hidden-audio" id="letterSong" src="bday-8bit.mp3" loop></audio>
+    </section>
+
+    <!-- ============ SCENE 6 : Birthday song (YouTube) ============ -->
+    <section class="scene" id="scene6">
+        <h2 class="pixel-title" style="font-size:clamp(13px,4vw,18px)">🎶 HAPPY BIRTHDAY TO YOU 🎶</h2>
+
+        <!--
+          Paste your YouTube embed code inside the div below (id="youtubeEmbed").
+          Example: an iframe like
+          <iframe src="https://www.youtube.com/embed/VIDEO_ID" ...></iframe>
+          The wrapper below keeps it responsive/mobile-friendly automatically.
+        -->
+        <div class="video-wrap pixel-box" id="youtubeEmbed">
+            <div class="video-placeholder">📺<br>your birthday song video<br>will play here</div>
+        </div>
+    </section>
+
+    <script>
+        /* =====================================================================
+           CONFIG — edit these to personalise the site
+           ===================================================================== */
+        const SECRET_PASSWORD = "070302"; // <-- change to her real 6-digit birthday (DDMMYY etc)
+        const NUM_PHOTOS = 5;              // how many photoN.jpg files you plan to add
+
+        /* =====================================================================
+           Scene manager
+           ===================================================================== */
+        const scenes = ["scene1", "scene2", "scene3", "scene4", "scene5", "scene6"];
+        function goToScene(id) {
+            scenes.forEach(s => document.getElementById(s).classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        /* =====================================================================
+           Ambient starfield (scene1 background flavor)
+           ===================================================================== */
+        (function makeStars() {
+            const wrap = document.getElementById('stars');
+            for (let i = 0; i < 40; i++) {
+                const s = document.createElement('div');
+                s.className = 'star';
+                s.style.left = Math.random() * 100 + 'vw';
+                s.style.top = Math.random() * 100 + 'vh';
+                s.style.animationDelay = (Math.random() * 2) + 's';
+                wrap.appendChild(s);
+            }
+        })();
+
+        /* =====================================================================
+           8-bit click beep via Web Audio API (no file needed)
+           ===================================================================== */
+        let audioCtx;
+        function beep(freq = 440, dur = 0.08, type = 'square') {
+            try {
+                audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+                osc.connect(gain).connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + dur);
+            } catch (e) { /* audio not available, ignore */ }
+        }
+
+        /* =====================================================================
+           Scene 1 -> 2
+           ===================================================================== */
+        document.getElementById('toScene2').addEventListener('click', () => {
+            beep(523, 0.1);
+            goToScene('scene2');
+        });
+
+        /* =====================================================================
+           Scene 2 : password keypad
+           ===================================================================== */
+        let pinValue = "";
+        const pinSlots = document.querySelectorAll('.pin-slot');
+        const pinError = document.getElementById('pinError');
+        const pinDisplay = document.getElementById('pinDisplay');
+
+        function renderPin() {
+            pinSlots.forEach((slot, i) => {
+                if (i < pinValue.length) {
+                    slot.textContent = "•";
+                    slot.classList.add('filled');
+                } else {
+                    slot.textContent = "";
+                    slot.classList.remove('filled');
+                }
+            });
+        }
+
+        document.getElementById('keypad').addEventListener('click', (e) => {
+            const btn = e.target.closest('.key');
+            if (!btn) return;
+
+            if (btn.id === 'keyDel') {
+                beep(200, 0.06, 'triangle');
+                pinValue = pinValue.slice(0, -1);
+                pinError.textContent = "";
+                renderPin();
+                return;
+            }
+
+            if (btn.id === 'keyEnter') {
+                beep(300, 0.09, 'triangle');
+                if (pinValue.length < 6) {
+                    pinError.textContent = "ENTER 6 DIGITS!";
+                    pinDisplay.classList.add('shake');
+                    setTimeout(() => pinDisplay.classList.remove('shake'), 400);
+                    return;
+                }
+                if (pinValue === SECRET_PASSWORD) {
+                    pinError.style.color = "var(--gold)";
+                    pinError.textContent = "CORRECT! 🎉";
+                    beep(659, 0.12);
+                    setTimeout(() => beep(880, 0.15), 120);
+                    setTimeout(() => goToScene('scene3'), 700);
+                } else {
+                    pinError.style.color = "var(--danger)";
+                    pinError.textContent = "WRONG PASSWORD, TRY AGAIN!";
+                    pinDisplay.classList.add('shake');
+                    beep(120, 0.2, 'sawtooth');
+                    setTimeout(() => pinDisplay.classList.remove('shake'), 400);
+                    pinValue = "";
+                    renderPin();
+                }
+                return;
+            }
+
+            // number key
+            if (btn.dataset.num !== undefined && pinValue.length < 6) {
+                beep(440, 0.06);
+                pinValue += btn.dataset.num;
+                pinError.textContent = "";
+                renderPin();
+            }
+        });
+
+        /* =====================================================================
+           Scene 3 : gifts (all identical — any choice leads onward)
+           ===================================================================== */
+        document.getElementById('giftsRow').addEventListener('click', (e) => {
+            const gift = e.target.closest('.gift-box');
+            if (!gift) return;
+            beep(523, 0.1);
+            gift.classList.add('pop');
+            buildPhotoGrid();
+            setTimeout(() => goToScene('scene4'), 550);
+        });
+
+        /* =====================================================================
+           Scene 4 : photo grid + song
+           ===================================================================== */
+        let photosBuilt = false;
+        function buildPhotoGrid() {
+            if (photosBuilt) return;
+            photosBuilt = true;
+            const grid = document.getElementById('photoGrid');
+            const rotations = [-6, 4, -3, 6, -4, 3];
+            for (let i = 1; i <= NUM_PHOTOS; i++) {
+                const card = document.createElement('div');
+                card.className = 'polaroid';
+                card.style.setProperty('--r', rotations[(i - 1) % rotations.length] + 'deg');
+                card.style.setProperty('--d', (i * 0.15) + 's');
+
+                const img = document.createElement('img');
+                img.src = `photo${i}.jpg`;
+                img.alt = `photo ${i}`;
+                img.onerror = function () {
+                    const fb = document.createElement('div');
+                    fb.className = 'photo-fallback';
+                    fb.textContent = '💜';
+                    this.replaceWith(fb);
+                };
+                card.appendChild(img);
+
+                const cap = document.createElement('div');
+                cap.className = 'cap';
+                cap.textContent = 'photo #' + i;
+                card.appendChild(cap);
+
+                grid.appendChild(card);
+            }
+
+            // try to play the gift song
+            const song = document.getElementById('giftSong');
+            song.play().catch(() => { /* autoplay might be blocked until user gesture, that's fine */ });
+
+            // show accept button after the photos pop in
+            setTimeout(() => {
+                document.getElementById('acceptGiftBtn').style.display = 'inline-block';
+            }, NUM_PHOTOS * 150 + 500);
+        }
+
+        document.getElementById('acceptGiftBtn').addEventListener('click', () => {
+            beep(659, 0.1);
+            goToScene('scene5');
+        });
+
+        /* =====================================================================
+           Scene 5 : envelope + letter + cake rain
+           ===================================================================== */
+        let cakeRainInterval = null;
+        function startCakeRain() {
+            if (cakeRainInterval) return;
+            cakeRainInterval = setInterval(() => {
+                const cake = document.createElement('div');
+                cake.className = 'cake-rain-item';
+                cake.textContent = ['🎂', '🧁', '🍰'][Math.floor(Math.random() * 3)];
+                cake.style.left = Math.random() * 100 + 'vw';
+                const duration = 3 + Math.random() * 2.5;
+                cake.style.animationDuration = duration + 's';
+                cake.style.fontSize = (18 + Math.random() * 20) + 'px';
+                document.body.appendChild(cake);
+                setTimeout(() => cake.remove(), duration * 1000 + 200);
+            }, 220);
+        }
+
+        document.getElementById('envelope').addEventListener('click', function () {
+            beep(392, 0.1);
+            setTimeout(() => beep(523, 0.12), 100);
+            this.style.display = 'none';
+            document.getElementById('letterCard').classList.add('show');
+            startCakeRain();
+            const song = document.getElementById('letterSong');
+            song.play().catch(() => { });
+        });
+
+        /* =====================================================================
+           Scene 5 -> 6 : sing of the birthday
+           ===================================================================== */
+        document.getElementById('toScene6').addEventListener('click', () => {
+            beep(587, 0.1);
+            // stop the 8-bit letter song so it doesn't overlap the YouTube video
+            const letterSong = document.getElementById('letterSong');
+            letterSong.pause();
+            goToScene('scene6');
+        });
+    </script>
+</body>
+</html>
