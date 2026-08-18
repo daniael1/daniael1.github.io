@@ -105,9 +105,7 @@
   }
   .intro-panel{
     position:absolute; top:0; bottom:0; width:50%;
-    background: radial-gradient(circle at 50% 30%, rgba(255,253,251,.6) 0%, rgba(248,230,233,.62) 90%);
-    backdrop-filter: blur(46px) saturate(1.05);
-    -webkit-backdrop-filter: blur(46px) saturate(1.05);
+    background: radial-gradient(circle at 50% 30%, #fffdfb 0%, var(--blush) 90%);
     transition: transform .85s cubic-bezier(.65,0,.35,1);
     z-index:1;
   }
@@ -120,14 +118,27 @@
     transition: opacity .5s ease .1s, transform .5s ease .1s;
   }
   .intro-cover.hidden .intro-inner{ opacity:0; transform:scale(.92); }
-  .diamond-frame{ position:relative; padding:58px 30px; }
-  .diamond-svg{ position:absolute; inset:0; width:100%; height:100%; overflow:visible; }
-  .diamond-svg polygon{ fill:rgba(253,249,245,.72); stroke:var(--gold); stroke-width:1.2; vector-effect:non-scaling-stroke; }
-  .diamond-content{ position:relative; z-index:1; }
   .intro-inner .eyebrow{ font-family:'Jost',sans-serif; font-size:12px; letter-spacing:.3em; text-transform:uppercase; color:var(--rose-dark); margin-bottom:14px; }
   .intro-inner .intro-names{ font-family:'Beau Rivage',cursive; font-size:64px; color:var(--rose-dark); line-height:1.2; }
   .intro-inner .intro-amp{ font-family:'Cormorant Garamond',serif; font-style:italic; font-size:22px; color:var(--gold); margin:2px 0; }
   .intro-btn{ margin-top:30px; display:inline-flex; width:auto; padding:13px 30px; }
+
+  /* ---------- music toggle ---------- */
+  .music-toggle{
+    position:absolute; right:16px; bottom:96px;
+    width:42px; height:42px; border-radius:50%;
+    border:1px solid var(--gold);
+    background:rgba(253,249,245,.92);
+    display:flex; align-items:center; justify-content:center;
+    color:var(--rose-dark);
+    box-shadow:0 4px 14px rgba(120,78,90,.2);
+    z-index:150; cursor:pointer;
+    animation: musicSpin 5s linear infinite;
+    animation-play-state:paused;
+  }
+  .music-toggle.playing{ animation-play-state:running; }
+  .music-toggle svg{ width:20px; height:20px; }
+  @keyframes musicSpin{ from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
 
   /* ---------- top bar ---------- */
   .topbar{
@@ -351,6 +362,17 @@
 </head>
 <body>
 <div class="app pre-open">
+  <!-- ============ BACKGROUND MUSIC ============
+       Put your song file in the SAME FOLDER as this index.html file,
+       then change "music.mp3" below to your file's exact name
+       (e.g. src="lagu-kahwin.mp3"). It will auto-start the moment
+       the guest taps "Klik Di Sini Untuk Buka" and loop forever. -->
+  <audio id="bgm" src="lagukahwin.mp3" loop preload="auto"></audio>
+  <button class="music-toggle" id="musicToggle" onclick="toggleMusic()" aria-label="Muzik">
+    <svg id="musicIconOn" viewBox="0 0 24 24" fill="none"><path d="M9 18V5l12-2v13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6" cy="18" r="3" stroke="currentColor" stroke-width="1.6"/><circle cx="18" cy="16" r="3" stroke="currentColor" stroke-width="1.6"/></svg>
+    <svg id="musicIconOff" viewBox="0 0 24 24" fill="none" style="display:none"><path d="M9 18V5l12-2v13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6" cy="18" r="3" stroke="currentColor" stroke-width="1.6"/><circle cx="18" cy="16" r="3" stroke="currentColor" stroke-width="1.6"/><line x1="3" y1="3" x2="21" y2="21" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+  </button>
+
   <div class="petal-rain" aria-hidden="true">
     <span class="petal" style="left:4%; width:17px; height:23px; animation-duration:11s; animation-delay:-2s;"></span>
     <span class="petal" style="left:14%; width:13px; height:17px; animation-duration:8.5s; animation-delay:-6s;"></span>
@@ -371,17 +393,10 @@
     <div class="intro-panel left"></div>
     <div class="intro-panel right"></div>
     <div class="intro-inner">
-      <div class="diamond-frame">
-        <svg class="diamond-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-          <polygon points="28,2 72,2 98,50 72,98 28,98 2,50"></polygon>
-        </svg>
-        <div class="diamond-content">
-          <div class="eyebrow">Jemputan Perkahwinan</div>
-          <div class="intro-names script">Umar</div>
-          <div class="intro-amp">&amp;</div>
-          <div class="intro-names script">Masyitah</div>
-        </div>
-      </div>
+      <div class="eyebrow">Jemputan Perkahwinan</div>
+      <div class="intro-names script">Umar</div>
+      <div class="intro-amp">&amp;</div>
+      <div class="intro-names script">Masyitah</div>
       <button class="btn solid intro-btn" onclick="openInvite()">Klik Di Sini Untuk Buka</button>
     </div>
   </div>
@@ -408,7 +423,7 @@
       </div>
 
       <div class="names-script">Umar &amp; Masyitah</div>
-      <div class="hashtag">#UmarriedMasyi</div>
+      <div class="hashtag">#UmarriedToMasyi</div>
       <div class="date-feature">
         <div class="df-main">Sabtu <span class="df-pipe">|</span> 19 Disember 2026</div>
         <div class="df-hijri">9 Rejab 1448H</div>
@@ -423,22 +438,22 @@
     <!-- invitation text -->
     <div class="card">
       <p class="muted">Dengan penuh rasa kesyukuran ke hadrat Ilahi, kami</p>
-      <p class="muted" style="margin-top:10px;">NORIHAN BINTI HAMZAH<br>(Balu kepada Almarhum Hasanuddin bin Jamaluddin)</p>
+      <p class="muted" style="margin-top:0px;font-weight:1000">NORIHAN BINTI HAMZAH</p>
       <p class="muted">serta</p>
-      <p class="muted">HAJI MOHAMAD AZMAN BIN MUSTAFFA &amp; ZAINAB BINTI JAYA</p>
+      <p class="muted" style="margin-top:0px;font-weight:1000">HAJI MOHAMAD AZMAN BIN MUSTAFFA &amp; ZAINAB BINTI JAYA</p>
 
-      <p class="muted" style="margin-top:14px;">Dengan segala hormatnya menjemput<br>Tan Sri / Puan Sri / Dato' / Datin / Tuan / Puan / Encik / Cik / Suami / Isteri<br>dan sekeluarga ke majlis perkahwinan anakanda kami</p>
+      <p class="muted" style="margin-top:0px;">Dengan segala hormatnya menjemput<br>Tan Sri / Puan Sri / Dato' / Datin / Tuan / Puan / Encik / Cik / Suami / Isteri<br>dan sekeluarga ke majlis perkahwinan anakanda kami</p>
 
-      <div class="big-names" style="margin-top:14px;">Masyitah Hasanuddin</div>
-      <p class="muted" style="margin:2px 0;">dengan pasangannya</p>
+      <div class="big-names" style="margin-top:0px;">Masyitah Hasanuddin</div>
+      <p class="muted" style="margin:-3px 0;">dengan pasangannya</p>
       <div class="big-names">Mohamad Umar Ariff</div>
 
-      <p style="margin-top:14px;">Semoga dengan kehadiran serta iringan doa para hadirin akan menyerikan lagi majlis ini serta menzahirkan keberkatan dan keredhaan Allah SWT.</p>
+      <p style="margin-top:0px;">Semoga dengan kehadiran serta iringan doa para hadirin akan menyerikan lagi majlis ini serta menzahirkan keberkatan dan keredhaan Allah SWT.</p>
     </div>
 
     <!-- Quranic verse -->
     <div class="card">
-      <h3>Ar-Rum · Ayat 21</h3>
+      <h3>Surah Ar-Rum · Ayat 21</h3>
       <div class="arabic">وَمِنْ آيَاتِهِ أَنْ خَلَقَ لَكُمْ مِّنْ أَنْفُسِكُمْ أَزْوَاجًا لِّتَسْكُنُوٓا إِلَيْهَا وَجَعَلَ بَيْنَكُم مَّوَدَّةً وَرَحْمَةً ۚ إِنَّ فِى ذَٰلِكَ لَءَايَٰتٍ لِّقَوْمٍ يَتَفَكَّرُونَ</div>
       <p class="muted" style="font-style:italic;">"Dan di antara tanda-tanda kekuasaan-Nya ialah Dia menciptakan untukmu isteri-isteri dari jenismu sendiri, supaya kamu cenderung dan merasa tenteram kepadanya, dan dijadikan-Nya di antara kamu rasa kasih dan sayang. Sesungguhnya pada yang demikian itu benar-benar terdapat tanda-tanda bagi kaum yang berfikir."</p>
     </div>
@@ -465,7 +480,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
       </button>
       <div class="sheet-title">Lokasi</div>
-      <div style="width:60px;"></div>
+      <div style="width:35px;"></div>
     </div>
     <div class="section-head">
       <div class="eyebrow">Sila Hadir Ke</div>
@@ -501,20 +516,16 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
       </button>
       <div class="sheet-title">Kalendar</div>
-      <div style="width:60px;"></div>
+      <div style="width:35px;"></div>
     </div>
     <div class="section-head">
-      <div class="eyebrow">Simpan Tarikh</div>
-      <h2>Kalendar</h2>
+      <h2>SAVE THE DATE! ❤︎⁠ </h2>
     </div>
 
     <div class="card" style="text-align:center;">
-      <h3>Save the Date</h3>
-      <p style="font-family:'Cormorant Garamond',serif; font-size:26px; font-weight:700; color:var(--rose-dark); margin:2px 0;">Sabtu</p>
-      <p style="font-size:22px; font-weight:600; letter-spacing:.03em; margin:2px 0;">19 Disember 2026</p>
-      <p class="muted">9 Rejab 1448H</p>
-      <div class="flourish-divider">✦</div>
-      <p style="font-size:17px;">11.00 AM – 4.00 PM</p>
+      <p style="font-family:'Cormorant Garamond',serif; font-size:26px; font-weight:700; color:var(--rose-dark); margin:0px 0;">Sabtu   <spa class="df-pipe">|</span>  19 Disember 2026</p>
+      <p style="font-family:'Cormorant Garamond',serif; font-size:20px; font-weight:300; color:var(--gray); margin:0px 0;">9 Rejab 1448H</p>
+      <p style="font-size:25px;">11.00 AM – 4.00 PM</p>
     </div>
 
     <!-- countdown -->
@@ -545,7 +556,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
       </button>
       <div class="sheet-title">Hubungi</div>
-      <div style="width:60px;"></div>
+      <div style="width:35px;"></div>
     </div>
     <div class="section-head">
       <div class="eyebrow">Sebarang Pertanyaan</div>
@@ -556,7 +567,7 @@
       <div class="avatar">U</div>
       <div class="info">
         <div class="name">[ Nama Wakil — Pengantin Lelaki ]</div>
-        <div class="role">Groom's Side</div>
+        <div class="role">Groom's Side (Umar Ariff)</div>
       </div>
       <div class="actions">
         <a class="icon-btn wa" href="https://wa.me/60100000000" target="_blank" rel="noopener" aria-label="WhatsApp">
@@ -571,14 +582,14 @@
     <div class="contact-card">
       <div class="avatar" style="background:linear-gradient(135deg, var(--rose), var(--blush-deep));">M</div>
       <div class="info">
-        <div class="name">[ Nama Wakil — Pengantin Perempuan ]</div>
-        <div class="role">Bride's Side</div>
+        <div class="name">ABBAS BIN HASANUDDIN</div>
+        <div class="role">Bride's Side (Masyitah)</div>
       </div>
       <div class="actions">
-        <a class="icon-btn wa" href="https://wa.me/60100000001" target="_blank" rel="noopener" aria-label="WhatsApp">
+        <a class="icon-btn wa" href="https://wa.me/60139911973" target="_blank" rel="noopener" aria-label="WhatsApp">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19L4 20Z"/></svg>
         </a>
-        <a class="icon-btn" href="tel:+60100000001" aria-label="Call">
+        <a class="icon-btn" href="tel:+60139911973" aria-label="Call">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z"/></svg>
         </a>
       </div>
@@ -593,7 +604,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
       </button>
       <div class="sheet-title">Kehadiran</div>
-      <div style="width:60px;"></div>
+      <div style="width:35px;"></div>
     </div>
     <div class="section-head">
       <div class="eyebrow">RSVP</div>
@@ -642,10 +653,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
       </button>
       <div class="sheet-title">Ucapan</div>
-      <div style="width:60px;"></div>
+      <div style="width:35px;"></div>
     </div>
     <div class="section-head">
-      <div class="eyebrow">Doa &amp; Restu</div>
+      <div class="eyebrow">Doa &amp; Ucapan</div>
       <h2>Ucapan</h2>
     </div>
 
@@ -742,6 +753,7 @@ function openInvite(){
   document.getElementById('intro').classList.add('hidden');
   document.querySelector('.app').classList.remove('pre-open');
   try{ sessionStorage.setItem('wm_opened','1'); }catch(e){}
+  playMusic();
 }
 (function initIntro(){
   try{
@@ -751,6 +763,29 @@ function openInvite(){
     }
   }catch(e){}
 })();
+
+/* =========================================================
+   BACKGROUND MUSIC — auto-starts on "Buka" tap, loops forever
+   ========================================================= */
+function setMusicIcon(playing){
+  const on = document.getElementById('musicIconOn');
+  const off = document.getElementById('musicIconOff');
+  const btn = document.getElementById('musicToggle');
+  if (on) on.style.display = playing ? '' : 'none';
+  if (off) off.style.display = playing ? 'none' : '';
+  if (btn) btn.classList.toggle('playing', playing);
+}
+function playMusic(){
+  const bgm = document.getElementById('bgm');
+  if (!bgm) return;
+  bgm.play().then(()=> setMusicIcon(true)).catch(()=> setMusicIcon(false));
+}
+function toggleMusic(){
+  const bgm = document.getElementById('bgm');
+  if (!bgm) return;
+  if (bgm.paused){ bgm.play().then(()=> setMusicIcon(true)).catch(()=>{}); }
+  else { bgm.pause(); setMusicIcon(false); }
+}
 
 /* =========================================================
    SHEET NAVIGATION (Lokasi / Kalendar / Hubungi / Kehadiran / Ucapan)
