@@ -96,6 +96,13 @@
     overflow:hidden;
   }
   .intro-cover.hidden{ pointer-events:none; }
+  .app.pre-open .topbar,
+  .app.pre-open main,
+  .app.pre-open .bottom-nav{
+    filter: blur(20px);
+    transform: scale(1.05);
+    transition: filter .9s ease, transform .9s ease;
+  }
   .intro-panel{
     position:absolute; top:0; bottom:0; width:50%;
     background: radial-gradient(circle at 50% 30%, rgba(255,253,251,.6) 0%, rgba(248,230,233,.62) 90%);
@@ -343,7 +350,7 @@
 </style>
 </head>
 <body>
-<div class="app">
+<div class="app pre-open">
   <div class="petal-rain" aria-hidden="true">
     <span class="petal" style="left:4%; width:17px; height:23px; animation-duration:11s; animation-delay:-2s;"></span>
     <span class="petal" style="left:14%; width:13px; height:17px; animation-duration:8.5s; animation-delay:-6s;"></span>
@@ -733,10 +740,16 @@ document.addEventListener('click', function(e){
    ========================================================= */
 function openInvite(){
   document.getElementById('intro').classList.add('hidden');
+  document.querySelector('.app').classList.remove('pre-open');
   try{ sessionStorage.setItem('wm_opened','1'); }catch(e){}
 }
 (function initIntro(){
-  try{ if (sessionStorage.getItem('wm_opened') === '1') document.getElementById('intro').classList.add('hidden'); }catch(e){}
+  try{
+    if (sessionStorage.getItem('wm_opened') === '1'){
+      document.getElementById('intro').classList.add('hidden');
+      document.querySelector('.app').classList.remove('pre-open');
+    }
+  }catch(e){}
 })();
 
 /* =========================================================
