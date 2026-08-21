@@ -11,7 +11,35 @@
  *  - recorded.html must be writable by PHP. If you get a permission error,
  *    set its file permissions to 664 (or 666 if 664 doesn't work) via your
  *    hosting file manager / FTP client.
+ *
+ * DIAGNOSTIC TIP: open this file's URL directly in a browser (no form needed).
+ * You should see plain JSON text like {"result":"error","message":"Missing required fields."}
+ *  - If instead you see the raw PHP source code as text, your host is not running PHP
+ *    for this file (check the file was uploaded as .php, not renamed/converted).
+ *  - If you see a blank white page or a generic server error page (500/403), that's a
+ *    server-side problem (permissions, PHP error) — check your host's error log.
+ *  - If you see JSON but with extra text/HTML around it (ads, banners), your free host
+ *    is injecting content into every page, which breaks this form; a different host is needed.
  */
+
+// Never let PHP warnings/errors print into the response — that corrupts the JSON output
+// and is the most common cause of "Something went wrong" even when the real error is
+// something specific and fixable (e.g. a permissions warning from fopen()).
+ini_set('display_errors', '0');
+error_reporting(E_ALL);
+
+// Safety net: if something fatal still happens, still return valid JSON instead of
+// a broken/blank response.
+register_shutdown_function(function () {
+    $err = error_get_last();
+    if ($err && in_array($err['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+        if (!headers_sent()) {
+            header('Content-Type: application/json');
+            http_response_code(500);
+        }
+        echo json_encode(['result' => 'error', 'message' => 'Server error: ' . $err['message']]);
+    }
+});
 
 header('Content-Type: application/json');
 
@@ -60,7 +88,13 @@ $row = "<tr>"
 
 // --- Write into recorded.html, replacing the marker with (new row + marker) ---
 // Using flock() so two guests submitting at the same instant don't corrupt the file.
-$fp = fopen($recordedFile, 'r+');
+if (!is_writable($recordedFile)) {
+    http_response_code(500);
+    echo json_encode(['result' => 'error', 'message' => 'recorded.html is not writable by the server — set its file permissions to 664 (or 666) via your hosting file manager.']);
+    exit;
+}
+
+$fp = @fopen($recordedFile, 'r+');
 if (!$fp) {
     http_response_code(500);
     echo json_encode(['result' => 'error', 'message' => 'Could not open recorded.html — check file permissions.']);
