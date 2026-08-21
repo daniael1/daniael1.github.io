@@ -303,6 +303,12 @@ async function saveEntry(){
   const waferId = prefix + idnum;
   const machineLabel = currentMachine().label;
 
+  const duplicate = records.find(r => r.machineKey === activeMachine && r.waferId === waferId && r.id !== editingId);
+  if(duplicate){
+    setStatus(`Wafer Adaptor ID "${waferId}" already exists for ${machineLabel}. Please use a different number or edit the existing entry.`, false);
+    return;
+  }
+
   const entry = {
     id: editingId || uid(),
     waferId, machineKey: activeMachine, machine: machineLabel,
