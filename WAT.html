@@ -103,6 +103,18 @@
   <h1>SMT DA Wafer Adapter Tracker</h1>
   <div class="sub">Log wafer adapter ID, size, and condition checks — to be filled by handsome SMT-PM tech guys ;) .</div>
 
+  <div class="card" id="uploadCard">
+    <h2>Import Previous Excel</h2>
+    <div class="sub" style="margin-bottom:10px;">
+      No data left from last time? Upload the Excel file you exported earlier and this will refresh all records (and the "not yet checked" reference) from it, so you can pick up where you left off.
+    </div>
+    <div class="btnrow" style="margin-top:0;">
+      <input type="file" id="importFile" accept=".xlsx,.xls" style="flex:1; min-width:180px;">
+      <button class="primary" onclick="importExcel()">Import &amp; Refresh</button>
+    </div>
+    <div id="importStatus" class="status-msg"></div>
+  </div>
+
   <div class="tabs" id="tabs"></div>
 
   <div id="storageWarning" class="warn-banner" style="display:none">
@@ -876,10 +888,10 @@ function exportExcel(){
       'Size (Inch)': r.size,
       'Condition Check': r.condition,
       'Remarks': r.remarks,
-      'Date Checked': r.dateChecked ? new Date(r.dateChecked).toLocaleString() : ''
+      'Date Checked': r.dateChecked || ''
     }));
     const ws = XLSX.utils.json_to_sheet(data.length ? data : [{}]);
-    ws['!cols'] = [{wch:16},{wch:14},{wch:10},{wch:16},{wch:30},{wch:18}];
+    ws['!cols'] = [{wch:16},{wch:14},{wch:10},{wch:16},{wch:30},{wch:24}];
     XLSX.utils.book_append_sheet(wb, ws, m.label.slice(0,31));
   });
 
@@ -889,14 +901,114 @@ function exportExcel(){
     'Inner Ring': r.innerRing,
     'Outer Ring': r.outerRing,
     'Remarks': r.remarks,
-    'Date Checked': r.dateChecked ? new Date(r.dateChecked).toLocaleString() : ''
+    'Date Checked': r.dateChecked || ''
   }));
   const ringWs = XLSX.utils.json_to_sheet(ringData.length ? ringData : [{}]);
-  ringWs['!cols'] = [{wch:16},{wch:18},{wch:12},{wch:12},{wch:30},{wch:18}];
+  ringWs['!cols'] = [{wch:16},{wch:18},{wch:12},{wch:12},{wch:30},{wch:24}];
   XLSX.utils.book_append_sheet(wb, ringWs, 'Inner Outer Ring');
 
   const dateStr = new Date().toISOString().slice(0,10);
   XLSX.writeFile(wb, `SMT_Wafer_Adapter_Data_${dateStr}.xlsx`);
+}
+
+function setImportStatus(msg, ok){
+  const el = document.getElementById('importStatus');
+  el.textContent = msg;
+  el.className = 'status-msg ' + (ok ? 'status-ok' : 'status-err');
+}
+
+function parseDateSafe(val){
+  if(!val) return new Date().toISOString();
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+}
+
+function importExcel(){
+  const fileInput = document.getElementById('importFile');
+  const file = fileInput.files && fileInput.files[0];
+  if(!file){ setImportStatus('Please choose a file first.', false); return; }
+
+  if(records.length > 0 || ringRecords.length > 0){
+    if(!confirm('This will replace ALL current records with the data from this file. Continue?')) return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = async function(e){
+    try{
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, { type:'array' });
+
+      const newRecords = [];
+      MACHINES.forEach(m => {
+        const sheetName = wb.SheetNames.find(n => n === m.label.slice(0,31) || n === m.label);
+        if(!sheetName) return;
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval:'' });
+        rows.forEach(row => {
+          const waferId = String(row['Wafer Adaptor ID'] || '').trim();
+          if(!waferId) return;
+          newRecords.push({
+            id: uid(),
+            waferId, machineKey: m.key, machine: m.label,
+            type: String(row['Expanding Type'] || ''),
+            size: String(row['Size (Inch)'] || ''),
+            condition: String(row['Condition Check'] || ''),
+            remarks: String(row['Remarks'] || ''),
+            dateChecked: parseDateSafe(row['Date Checked'])
+          });
+        });
+      });
+
+      const newRingRecords = [];
+      const ringSheetName = wb.SheetNames.find(n => n === 'Inner Outer Ring');
+      if(ringSheetName){
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[ringSheetName], { defval:'' });
+        rows.forEach(row => {
+          const waferId = String(row['Wafer Adaptor ID'] || '').trim();
+          if(!waferId) return;
+          const machineLabel = String(row['Machine'] || '');
+          const m = MACHINES.find(x => x.label === machineLabel) || MACHINES[0];
+          newRingRecords.push({
+            id: ringUid(),
+            waferId, machineKey: m.key, machine: m.label,
+            innerRing: String(row['Inner Ring'] || ''),
+            outerRing: String(row['Outer Ring'] || ''),
+            remarks: String(row['Remarks'] || ''),
+            dateChecked: parseDateSafe(row['Date Checked'])
+          });
+        });
+      }
+
+      if(newRecords.length === 0 && newRingRecords.length === 0){
+        setImportStatus('No recognizable data found in that file — check it was exported from this tracker.', false);
+        return;
+      }
+
+      records = newRecords;
+      ringRecords = newRingRecords;
+
+      const res1 = await persist();
+      const res2 = await persistRing();
+      if(res1.ok && res2.ok){
+        renderMachineButtons();
+        renderRingMachineButtons();
+        renderFilterOptions();
+        renderTable();
+        renderRingTable();
+        renderRefDropdown();
+        setImportStatus(`Imported ${newRecords.length} condition-check record(s) and ${newRingRecords.length} ring-check record(s).`, true);
+        fileInput.value = '';
+      } else {
+        setImportStatus('Imported into the app, but saving failed: ' + (res1.error || res2.error), false);
+      }
+    }catch(err){
+      console.error('Import failed:', err);
+      setImportStatus('Could not read that file: ' + (err.message || err), false);
+    }
+  };
+  reader.onerror = function(){
+    setImportStatus('Failed to read the file.', false);
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 loadRecords();
