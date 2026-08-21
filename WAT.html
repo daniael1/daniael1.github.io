@@ -95,12 +95,13 @@
     padding:8px 12px; border-radius:999px; font-size:13px; font-weight:500;
   }
   .opt-btn.selected{background:var(--accent); border-color:var(--accent); color:white; font-weight:700;}
+  .ref-count{color:var(--muted); font-weight:400; text-transform:none; letter-spacing:normal;}
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>SMT DA Wafer Adapter Tracker</h1>
-  <div class="sub">Log wafer adapter ID, size, and condition checks — to be updated by handsome SMT-PM tech guys ;) .</div>
+  <div class="sub">Log wafer adapter ID, size, and condition checks — to be filled by handsome SMT-PM tech guys ;) .</div>
 
   <div class="tabs" id="tabs"></div>
 
@@ -122,7 +123,12 @@
           <input id="f_idnum" type="text" inputmode="numeric" placeholder="e.g. 1, 12, 100">
         </div>
       </div>
-      <div></div>
+      <div>
+        <label>Reference: Not Yet Checked <span id="refCount" class="ref-count"></span></label>
+        <select id="f_refDropdown" onchange="pickRefId(this.value)">
+          <option value="">-- Select ID to check --</option>
+        </select>
+      </div>
       <div>
         <label>Expanding Type</label>
         <div class="btn-options" id="f_type_group">
@@ -247,6 +253,13 @@ const MACHINES = [
   { key:'MEGA',    label:'MCM MEGA-G',       prefix:'M' }
 ];
 
+// Full wafer adapter ID reference list, sourced from the uploaded SMT Wafer Adapter tracking file.
+const MASTER_IDS = {
+  MCM12: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,85,86,87,88,89,90,91,93,94,95,96,98,99,100,101,102,104,105,109,111,112],
+  DATACON: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30],
+  MEGA: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25]
+};
+
 let records = [];
 let editingId = null;
 let activeMachine = MACHINES[0].key;
@@ -359,6 +372,35 @@ function renderMachineButtons(){
     <button type="button" class="opt-btn ${m.key === activeMachine ? 'selected' : ''}" data-value="${m.key}" onclick="selectMachine('${m.key}')">${m.label}</button>
   `).join('');
   document.getElementById('idPrefix').textContent = currentMachine().prefix;
+  renderRefDropdown();
+}
+
+function getCheckedNumbersForMachine(machineKey){
+  const prefix = MACHINES.find(m => m.key === machineKey).prefix;
+  const nums = new Set();
+  records.filter(r => r.machineKey === machineKey).forEach(r => {
+    const n = parseInt(String(r.waferId || '').replace(prefix, ''), 10);
+    if(!isNaN(n)) nums.add(n);
+  });
+  return nums;
+}
+
+function renderRefDropdown(){
+  const sel = document.getElementById('f_refDropdown');
+  if(!sel) return;
+  const machine = currentMachine();
+  const all = MASTER_IDS[activeMachine] || [];
+  const checked = getCheckedNumbersForMachine(activeMachine);
+  const remaining = all.filter(n => !checked.has(n));
+  sel.innerHTML = '<option value="">-- Select ID to check --</option>' +
+    remaining.map(n => `<option value="${n}">${machine.prefix}${n}</option>`).join('');
+  document.getElementById('refCount').textContent = `(${remaining.length} of ${all.length} remaining)`;
+}
+
+function pickRefId(val){
+  if(val){
+    document.getElementById('f_idnum').value = val;
+  }
 }
 
 function selectMachine(key){
@@ -483,6 +525,7 @@ async function saveEntry(){
     }
     renderFilterOptions();
     renderTable();
+    renderRefDropdown();
   } else {
     setStatus('Failed to save: ' + res.error, false);
   }
@@ -523,7 +566,7 @@ async function deleteEntry(recId){
   const backup = records;
   records = records.filter(r => r.id !== recId);
   const res = await persist();
-  if(res.ok){ renderFilterOptions(); renderTable(); }
+  if(res.ok){ renderFilterOptions(); renderTable(); renderRefDropdown(); }
   else { records = backup; alert('Failed to delete: ' + res.error); }
 }
 
@@ -537,6 +580,7 @@ async function clearAllRecords(){
   if(res.ok){
     renderFilterOptions();
     renderTable();
+    renderRefDropdown();
     showUndoBanner(`All records cleared (${clearBackup.length} entries).`);
   } else {
     records = clearBackup;
@@ -567,6 +611,7 @@ async function undoClear(){
     hideUndoBanner();
     renderFilterOptions();
     renderTable();
+    renderRefDropdown();
     setStatus('Records restored.', true);
   } else {
     alert('Failed to restore: ' + res.error);
