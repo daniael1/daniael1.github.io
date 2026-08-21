@@ -100,7 +100,7 @@
 <body>
 <div class="wrap">
   <h1>SMT DA Wafer Adapter Tracker</h1>
-  <div class="sub">Log wafer adapter ID, size, and condition checks — filled in by handsome SMT-PM Tech guys ;) .</div>
+  <div class="sub">Log wafer adapter ID, size, and condition checks — to be updated by handsome SMT-PM tech guys ;) .</div>
 
   <div class="tabs" id="tabs"></div>
 
@@ -108,9 +108,13 @@
     ⚠ Persistent storage isn't available in this view, so records will only last for this session — they'll be lost on refresh. Export to Excel before closing to keep your data.
   </div>
 
-  <div class="card">
+  <div class="card" id="machineFormCard">
     <h2 id="formTitle">Add Entry</h2>
     <div class="grid">
+      <div class="full">
+        <label>Machine</label>
+        <div class="btn-options" id="machine_group"></div>
+      </div>
       <div>
         <label>Wafer Adaptor ID *</label>
         <div class="id-input-group">
@@ -118,6 +122,7 @@
           <input id="f_idnum" type="text" inputmode="numeric" placeholder="e.g. 1, 12, 100">
         </div>
       </div>
+      <div></div>
       <div>
         <label>Expanding Type</label>
         <div class="btn-options" id="f_type_group">
@@ -158,7 +163,7 @@
     <div id="formStatus" class="status-msg"></div>
   </div>
 
-  <div class="card">
+  <div class="card" id="machineRecordsCard">
     <h2 id="recordsTitle">Records</h2>
     <div class="toolbar">
       <input type="text" id="search" placeholder="Search ID, remarks..." oninput="renderTable()">
@@ -175,10 +180,67 @@
     </div>
     <div id="tableArea" class="tablewrap"><div class="loading">Loading records…</div></div>
   </div>
+
+  <div class="card" id="ringFormCard" style="display:none">
+    <h2 id="ringFormTitle">Add Ring Check</h2>
+    <div class="grid">
+      <div class="full">
+        <label>Machine</label>
+        <div class="btn-options" id="ring_machine_group"></div>
+      </div>
+      <div>
+        <label>Wafer Adaptor ID *</label>
+        <div class="id-input-group">
+          <span class="id-prefix" id="ringIdPrefix">C</span>
+          <input id="rf_idnum" type="text" inputmode="numeric" placeholder="e.g. 1, 12, 100">
+        </div>
+      </div>
+      <div></div>
+      <div>
+        <label>Inner Ring Available *</label>
+        <div class="btn-options" id="rf_inner_group">
+          <button type="button" class="opt-btn" data-value="Yes" onclick="selectRingOption('inner','Yes')">Yes</button>
+          <button type="button" class="opt-btn" data-value="No" onclick="selectRingOption('inner','No')">No</button>
+        </div>
+      </div>
+      <div>
+        <label>Outer Ring Available *</label>
+        <div class="btn-options" id="rf_outer_group">
+          <button type="button" class="opt-btn" data-value="Yes" onclick="selectRingOption('outer','Yes')">Yes</button>
+          <button type="button" class="opt-btn" data-value="No" onclick="selectRingOption('outer','No')">No</button>
+        </div>
+      </div>
+      <div class="full">
+        <label>Remarks</label>
+        <textarea id="rf_remarks" placeholder="optional notes"></textarea>
+      </div>
+    </div>
+    <div class="btnrow">
+      <button class="primary" onclick="saveRingEntry()">Save Ring Check</button>
+      <button class="secondary" id="cancelRingEditBtn" style="display:none" onclick="cancelRingEdit()">Cancel Edit</button>
+    </div>
+    <div id="ringFormStatus" class="status-msg"></div>
+  </div>
+
+  <div class="card" id="ringRecordsCard" style="display:none">
+    <h2>Inner/Outer Ring Records</h2>
+    <div class="toolbar">
+      <input type="text" id="ringSearch" placeholder="Search ID, remarks..." oninput="renderRingTable()">
+      <button class="secondary" onclick="exportExcel()">Export to Excel</button>
+      <button class="danger" onclick="clearAllRingRecords()">Clear All</button>
+      <span class="count" id="ringRecordCount"></span>
+    </div>
+    <div id="ringUndoBanner" class="undo-banner" style="display:none">
+      <span id="ringUndoMsg"></span>
+      <button class="secondary" onclick="undoRingClear()">Undo</button>
+    </div>
+    <div id="ringTableArea" class="tablewrap"><div class="loading">Loading records…</div></div>
+  </div>
 </div>
 
 <script>
 const STORAGE_KEY = 'wafer_adapter_records';
+const RING_STORAGE_KEY = 'wafer_adapter_ring_records';
 const MACHINES = [
   { key:'MCM12',   label:'MCM-12',           prefix:'C' },
   { key:'DATACON', label:'DATACON Evo 2200', prefix:'D' },
@@ -188,12 +250,21 @@ const MACHINES = [
 let records = [];
 let editingId = null;
 let activeMachine = MACHINES[0].key;
+let activeView = 'COND'; // 'COND' or 'RING'
 let clearBackup = null;
 let undoTimer = null;
 let selectedType = '';
 let selectedCondition = '';
 let selectedSize = '';
 let storageAvailable = true;
+
+let ringRecords = [];
+let ringEditingId = null;
+let ringMachine = MACHINES[0].key;
+let selectedInner = '';
+let selectedOuter = '';
+let ringClearBackup = null;
+let ringUndoTimer = null;
 
 function hasStorage(){
   return typeof window.storage !== 'undefined' && window.storage && typeof window.storage.set === 'function';
@@ -219,6 +290,29 @@ function updateOptionButtons(groupId, value){
   });
 }
 
+function renderRingMachineButtons(){
+  const group = document.getElementById('ring_machine_group');
+  group.innerHTML = MACHINES.map(m => `
+    <button type="button" class="opt-btn ${m.key === ringMachine ? 'selected' : ''}" data-value="${m.key}" onclick="selectRingMachine('${m.key}')">${m.label}</button>
+  `).join('');
+  document.getElementById('ringIdPrefix').textContent = MACHINES.find(m => m.key === ringMachine).prefix;
+}
+
+function selectRingMachine(key){
+  ringMachine = key;
+  renderRingMachineButtons();
+}
+
+function selectRingOption(field, value){
+  if(field === 'inner'){
+    selectedInner = (selectedInner === value) ? '' : value;
+    updateOptionButtons('rf_inner_group', selectedInner);
+  } else if(field === 'outer'){
+    selectedOuter = (selectedOuter === value) ? '' : value;
+    updateOptionButtons('rf_outer_group', selectedOuter);
+  }
+}
+
 function currentMachine(){
   return MACHINES.find(m => m.key === activeMachine);
 }
@@ -227,22 +321,53 @@ function uid(){ return 'w' + Date.now() + Math.random().toString(36).slice(2,7);
 
 function renderTabs(){
   const tabs = document.getElementById('tabs');
-  tabs.innerHTML = MACHINES.map(m => `
-    <button class="tab-btn ${m.key === activeMachine ? 'active' : ''}" onclick="switchTab('${m.key}')">${m.label}</button>
-  `).join('');
+  tabs.innerHTML = `
+    <button class="tab-btn ${activeView === 'COND' ? 'active' : ''}" onclick="switchToCondView()">Condition Check</button>
+    <button class="tab-btn ${activeView === 'RING' ? 'active' : ''}" onclick="switchToRingView()">Inner/Outer Ring</button>
+  `;
 }
 
-function switchTab(key){
+function showView(view){
+  activeView = view;
+  document.getElementById('machineFormCard').style.display = view === 'COND' ? 'block' : 'none';
+  document.getElementById('machineRecordsCard').style.display = view === 'COND' ? 'block' : 'none';
+  document.getElementById('ringFormCard').style.display = view === 'RING' ? 'block' : 'none';
+  document.getElementById('ringRecordsCard').style.display = view === 'RING' ? 'block' : 'none';
+  renderTabs();
+}
+
+function switchToRingView(){
+  ringEditingId = null;
+  document.getElementById('ringFormTitle').textContent = 'Add Ring Check';
+  document.getElementById('cancelRingEditBtn').style.display = 'none';
+  document.getElementById('rf_idnum').value = '';
+  renderRingMachineButtons();
+  showView('RING');
+  renderRingTable();
+}
+
+function switchToCondView(){
+  showView('COND');
+  renderMachineButtons();
+  renderFilterOptions();
+  renderTable();
+}
+
+function renderMachineButtons(){
+  const group = document.getElementById('machine_group');
+  group.innerHTML = MACHINES.map(m => `
+    <button type="button" class="opt-btn ${m.key === activeMachine ? 'selected' : ''}" data-value="${m.key}" onclick="selectMachine('${m.key}')">${m.label}</button>
+  `).join('');
+  document.getElementById('idPrefix').textContent = currentMachine().prefix;
+}
+
+function selectMachine(key){
   activeMachine = key;
   editingId = null;
   document.getElementById('formTitle').textContent = 'Add Entry';
   document.getElementById('cancelEditBtn').style.display = 'none';
-  document.getElementById('idPrefix').textContent = currentMachine().prefix;
-  document.getElementById('recordsTitle').textContent = currentMachine().label + ' Records';
   document.getElementById('f_idnum').value = '';
-  renderTabs();
-  renderFilterOptions();
-  renderTable();
+  renderMachineButtons();
 }
 
 async function loadRecords(){
@@ -250,6 +375,7 @@ async function loadRecords(){
   if(!storageAvailable){
     document.getElementById('storageWarning').style.display = 'block';
     records = [];
+    ringRecords = [];
   } else {
     try{
       const res = await window.storage.get(STORAGE_KEY, true);
@@ -257,12 +383,19 @@ async function loadRecords(){
     }catch(e){
       records = [];
     }
+    try{
+      const res2 = await window.storage.get(RING_STORAGE_KEY, true);
+      ringRecords = res2 && res2.value ? JSON.parse(res2.value) : [];
+    }catch(e){
+      ringRecords = [];
+    }
   }
   renderTabs();
-  document.getElementById('idPrefix').textContent = currentMachine().prefix;
-  document.getElementById('recordsTitle').textContent = currentMachine().label + ' Records';
+  renderMachineButtons();
+  renderRingMachineButtons();
   renderFilterOptions();
   renderTable();
+  renderRingTable();
 }
 
 async function persist(){
@@ -276,6 +409,20 @@ async function persist(){
     return { ok:true };
   }catch(e){
     console.error('Persist failed:', e);
+    return { ok:false, error: (e && e.message) ? e.message : String(e) };
+  }
+}
+
+async function persistRing(){
+  if(!storageAvailable){
+    return { ok:true };
+  }
+  try{
+    const result = await window.storage.set(RING_STORAGE_KEY, JSON.stringify(ringRecords), true);
+    if(!result) throw new Error('Storage returned no result');
+    return { ok:true };
+  }catch(e){
+    console.error('Persist ring failed:', e);
     return { ok:false, error: (e && e.message) ? e.message : String(e) };
   }
 }
@@ -346,11 +493,7 @@ function editEntry(recId){
   if(!r) return;
   if(r.machineKey !== activeMachine){
     activeMachine = r.machineKey;
-    renderTabs();
-    document.getElementById('idPrefix').textContent = currentMachine().prefix;
-    document.getElementById('recordsTitle').textContent = currentMachine().label + ' Records';
-    renderFilterOptions();
-    renderTable();
+    renderMachineButtons();
   }
   editingId = recId;
   const numPart = (r.waferId || '').replace(currentMachine().prefix, '');
@@ -364,6 +507,7 @@ function editEntry(recId){
   document.getElementById('f_remarks').value = r.remarks || '';
   document.getElementById('formTitle').textContent = 'Edit Entry';
   document.getElementById('cancelEditBtn').style.display = 'inline-block';
+  showView('COND');
   window.scrollTo({top:0, behavior:'smooth'});
 }
 
@@ -429,6 +573,189 @@ async function undoClear(){
   }
 }
 
+function ringUid(){ return 'r' + Date.now() + Math.random().toString(36).slice(2,7); }
+
+function setRingStatus(msg, ok){
+  const el = document.getElementById('ringFormStatus');
+  el.textContent = msg;
+  el.className = 'status-msg ' + (ok ? 'status-ok' : 'status-err');
+  if(msg){ setTimeout(()=>{ el.textContent=''; }, 2500); }
+}
+
+async function saveRingEntry(){
+  const idnum = document.getElementById('rf_idnum').value.trim();
+  const inner = selectedInner;
+  const outer = selectedOuter;
+  const remarks = document.getElementById('rf_remarks').value.trim();
+  const machineObj = MACHINES.find(m => m.key === ringMachine);
+  const prefix = machineObj.prefix;
+
+  if(!idnum || !inner || !outer){
+    setRingStatus('Wafer Adaptor ID, Inner Ring, and Outer Ring are required.', false);
+    return;
+  }
+
+  const waferId = prefix + idnum;
+
+  const duplicate = ringRecords.find(r => r.machineKey === ringMachine && r.waferId === waferId && r.id !== ringEditingId);
+  if(duplicate){
+    setRingStatus(`Wafer Adaptor ID "${waferId}" already has a ring check for ${machineObj.label}. Please edit the existing entry instead.`, false);
+    return;
+  }
+
+  const entry = {
+    id: ringEditingId || ringUid(),
+    waferId, machineKey: ringMachine, machine: machineObj.label,
+    innerRing: inner, outerRing: outer, remarks,
+    dateChecked: new Date().toISOString()
+  };
+
+  if(ringEditingId){
+    const idx = ringRecords.findIndex(r => r.id === ringEditingId);
+    if(idx > -1) ringRecords[idx] = {...ringRecords[idx], ...entry};
+  } else {
+    ringRecords.unshift(entry);
+  }
+
+  const res = await persistRing();
+  if(res.ok){
+    setRingStatus(ringEditingId ? 'Entry updated.' : 'Entry saved.', true);
+    document.getElementById('rf_idnum').value = '';
+    if(ringEditingId){
+      ringEditingId = null;
+      document.getElementById('ringFormTitle').textContent = 'Add Ring Check';
+      document.getElementById('cancelRingEditBtn').style.display = 'none';
+    }
+    renderRingTable();
+  } else {
+    setRingStatus('Failed to save: ' + res.error, false);
+  }
+}
+
+function editRingEntry(recId){
+  const r = ringRecords.find(x => x.id === recId);
+  if(!r) return;
+  ringMachine = r.machineKey;
+  renderRingMachineButtons();
+  ringEditingId = recId;
+  const numPart = (r.waferId || '').replace(MACHINES.find(m => m.key === ringMachine).prefix, '');
+  document.getElementById('rf_idnum').value = numPart;
+  selectedInner = r.innerRing || '';
+  selectedOuter = r.outerRing || '';
+  updateOptionButtons('rf_inner_group', selectedInner);
+  updateOptionButtons('rf_outer_group', selectedOuter);
+  document.getElementById('rf_remarks').value = r.remarks || '';
+  document.getElementById('ringFormTitle').textContent = 'Edit Ring Check';
+  document.getElementById('cancelRingEditBtn').style.display = 'inline-block';
+  showView('RING');
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function cancelRingEdit(){
+  ringEditingId = null;
+  document.getElementById('rf_idnum').value = '';
+  document.getElementById('ringFormTitle').textContent = 'Add Ring Check';
+  document.getElementById('cancelRingEditBtn').style.display = 'none';
+}
+
+async function deleteRingEntry(recId){
+  if(!confirm('Delete this ring check record?')) return;
+  const backup = ringRecords;
+  ringRecords = ringRecords.filter(r => r.id !== recId);
+  const res = await persistRing();
+  if(res.ok){ renderRingTable(); }
+  else { ringRecords = backup; alert('Failed to delete: ' + res.error); }
+}
+
+async function clearAllRingRecords(){
+  if(ringRecords.length === 0){ alert('There are no ring check records to clear.'); return; }
+  if(!confirm(`This will clear ALL Inner/Outer Ring records (${ringRecords.length} total). Continue?`)) return;
+
+  ringClearBackup = ringRecords;
+  ringRecords = [];
+  const res = await persistRing();
+  if(res.ok){
+    renderRingTable();
+    showRingUndoBanner(`All ring check records cleared (${ringClearBackup.length} entries).`);
+  } else {
+    ringRecords = ringClearBackup;
+    ringClearBackup = null;
+    alert('Failed to clear: ' + res.error);
+  }
+}
+
+function showRingUndoBanner(msg){
+  const banner = document.getElementById('ringUndoBanner');
+  document.getElementById('ringUndoMsg').textContent = msg;
+  banner.style.display = 'flex';
+  if(ringUndoTimer) clearTimeout(ringUndoTimer);
+  ringUndoTimer = setTimeout(hideRingUndoBanner, 15000);
+}
+
+function hideRingUndoBanner(){
+  document.getElementById('ringUndoBanner').style.display = 'none';
+  ringClearBackup = null;
+  if(ringUndoTimer){ clearTimeout(ringUndoTimer); ringUndoTimer = null; }
+}
+
+async function undoRingClear(){
+  if(!ringClearBackup) return;
+  ringRecords = ringClearBackup;
+  const res = await persistRing();
+  if(res.ok){
+    hideRingUndoBanner();
+    renderRingTable();
+    setRingStatus('Records restored.', true);
+  } else {
+    alert('Failed to restore: ' + res.error);
+  }
+}
+
+function ringTagClass(val){
+  return val === 'Yes' ? 'tag-good' : 'tag-bad';
+}
+
+function renderRingTable(){
+  const area = document.getElementById('ringTableArea');
+  if(!area) return;
+  const search = document.getElementById('ringSearch').value.toLowerCase();
+
+  let filtered = ringRecords.filter(r => {
+    return !search || [r.waferId, r.machine, r.remarks].join(' ').toLowerCase().includes(search);
+  });
+
+  document.getElementById('ringRecordCount').textContent = `${filtered.length} of ${ringRecords.length} records`;
+
+  if(filtered.length === 0){
+    area.innerHTML = '<div class="empty">No ring check records yet. Add an entry above to get started.</div>';
+    return;
+  }
+
+  const rows = filtered.map(r => `
+    <tr>
+      <td><strong>${escapeHtml(r.waferId)}</strong></td>
+      <td>${escapeHtml(r.machine)}</td>
+      <td><span class="tag ${ringTagClass(r.innerRing)}">${escapeHtml(r.innerRing)}</span></td>
+      <td><span class="tag ${ringTagClass(r.outerRing)}">${escapeHtml(r.outerRing)}</span></td>
+      <td>${escapeHtml(r.remarks)}</td>
+      <td>${r.dateChecked ? new Date(r.dateChecked).toLocaleDateString() : ''}</td>
+      <td class="row-actions">
+        <button class="secondary" onclick="editRingEntry('${r.id}')">Edit</button>
+        <button class="danger" onclick="deleteRingEntry('${r.id}')">Del</button>
+      </td>
+    </tr>
+  `).join('');
+
+  area.innerHTML = `
+    <table>
+      <thead><tr>
+        <th>ID</th><th>Machine</th><th>Inner Ring</th><th>Outer Ring</th>
+        <th>Remarks</th><th>Date</th><th></th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
 function conditionTagClass(cond){
   const c = (cond||'').toLowerCase();
   if(c.includes('good') || c === 'in use') return 'tag-good';
@@ -440,7 +767,7 @@ function conditionTagClass(cond){
 function renderFilterOptions(){
   const sel = document.getElementById('filterCondition');
   const current = sel.value;
-  const conditions = [...new Set(records.filter(r => r.machineKey === activeMachine).map(r => r.condition).filter(Boolean))];
+  const conditions = [...new Set(records.map(r => r.condition).filter(Boolean))];
   sel.innerHTML = '<option value="">All conditions</option>' +
     conditions.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
   sel.value = current;
@@ -456,23 +783,22 @@ function renderTable(){
   const filterCond = document.getElementById('filterCondition').value;
 
   let filtered = records.filter(r => {
-    if(r.machineKey !== activeMachine) return false;
-    const matchesSearch = !search || [r.waferId, r.type, r.remarks].join(' ').toLowerCase().includes(search);
+    const matchesSearch = !search || [r.waferId, r.machine, r.type, r.remarks].join(' ').toLowerCase().includes(search);
     const matchesCond = !filterCond || r.condition === filterCond;
     return matchesSearch && matchesCond;
   });
 
-  document.getElementById('recordCount').textContent =
-    `${filtered.length} of ${records.filter(r => r.machineKey === activeMachine).length} records`;
+  document.getElementById('recordCount').textContent = `${filtered.length} of ${records.length} records`;
 
   if(filtered.length === 0){
-    area.innerHTML = '<div class="empty">No records yet for this machine. Add an entry above to get started.</div>';
+    area.innerHTML = '<div class="empty">No records yet. Add an entry above to get started.</div>';
     return;
   }
 
   const rows = filtered.map(r => `
     <tr>
       <td><strong>${escapeHtml(r.waferId)}</strong></td>
+      <td>${escapeHtml(r.machine)}</td>
       <td>${escapeHtml(r.type)}</td>
       <td>${escapeHtml(r.size)}</td>
       <td><span class="tag ${conditionTagClass(r.condition)}">${escapeHtml(r.condition)}</span></td>
@@ -488,7 +814,7 @@ function renderTable(){
   area.innerHTML = `
     <table>
       <thead><tr>
-        <th>ID</th><th>Type</th><th>Size</th><th>Condition</th>
+        <th>ID</th><th>Machine</th><th>Type</th><th>Size</th><th>Condition</th>
         <th>Remarks</th><th>Date</th><th></th>
       </tr></thead>
       <tbody>${rows}</tbody>
@@ -496,7 +822,7 @@ function renderTable(){
 }
 
 function exportExcel(){
-  if(records.length === 0){ alert('No records to export yet.'); return; }
+  if(records.length === 0 && ringRecords.length === 0){ alert('No records to export yet.'); return; }
   const wb = XLSX.utils.book_new();
   MACHINES.forEach(m => {
     const data = records.filter(r => r.machineKey === m.key).map(r => ({
@@ -511,6 +837,19 @@ function exportExcel(){
     ws['!cols'] = [{wch:16},{wch:14},{wch:10},{wch:16},{wch:30},{wch:18}];
     XLSX.utils.book_append_sheet(wb, ws, m.label.slice(0,31));
   });
+
+  const ringData = ringRecords.map(r => ({
+    'Wafer Adaptor ID': r.waferId,
+    'Machine': r.machine,
+    'Inner Ring': r.innerRing,
+    'Outer Ring': r.outerRing,
+    'Remarks': r.remarks,
+    'Date Checked': r.dateChecked ? new Date(r.dateChecked).toLocaleString() : ''
+  }));
+  const ringWs = XLSX.utils.json_to_sheet(ringData.length ? ringData : [{}]);
+  ringWs['!cols'] = [{wch:16},{wch:18},{wch:12},{wch:12},{wch:30},{wch:18}];
+  XLSX.utils.book_append_sheet(wb, ringWs, 'Inner Outer Ring');
+
   const dateStr = new Date().toISOString().slice(0,10);
   XLSX.writeFile(wb, `SMT_Wafer_Adapter_Data_${dateStr}.xlsx`);
 }
