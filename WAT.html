@@ -85,6 +85,10 @@
     padding:8px 12px; border-radius:8px; margin-bottom:10px; font-size:13px;
   }
   .undo-banner button{padding:5px 12px; font-size:12px;}
+  .warn-banner{
+    background:rgba(239,68,68,.12); border:1px solid var(--bad); color:var(--bad);
+    padding:8px 12px; border-radius:8px; margin-bottom:14px; font-size:13px;
+  }
   .btn-options{display:flex; flex-wrap:wrap; gap:6px;}
   .opt-btn{
     background:var(--card2); color:var(--text); border:1px solid var(--border);
@@ -96,9 +100,13 @@
 <body>
 <div class="wrap">
   <h1>SMT DA Wafer Adapter Tracker</h1>
-  <div class="sub">Log wafer adapter ID, size, and condition checks — filled in by handsome SMT PM Techs guy ;).</div>
+  <div class="sub">Log wafer adapter ID, size, and condition checks — shared with your SMT team. Export to Excel anytime to update your official tracking file.</div>
 
   <div class="tabs" id="tabs"></div>
+
+  <div id="storageWarning" class="warn-banner" style="display:none">
+    ⚠ Persistent storage isn't available in this view, so records will only last for this session — they'll be lost on refresh. Export to Excel before closing to keep your data.
+  </div>
 
   <div class="card">
     <h2 id="formTitle">Add Entry</h2>
@@ -185,6 +193,11 @@ let undoTimer = null;
 let selectedType = '';
 let selectedCondition = '';
 let selectedSize = '';
+let storageAvailable = true;
+
+function hasStorage(){
+  return typeof window.storage !== 'undefined' && window.storage && typeof window.storage.set === 'function';
+}
 
 function selectOption(field, value){
   if(field === 'type'){
@@ -233,11 +246,17 @@ function switchTab(key){
 }
 
 async function loadRecords(){
-  try{
-    const res = await window.storage.get(STORAGE_KEY, true);
-    records = res && res.value ? JSON.parse(res.value) : [];
-  }catch(e){
+  storageAvailable = hasStorage();
+  if(!storageAvailable){
+    document.getElementById('storageWarning').style.display = 'block';
     records = [];
+  } else {
+    try{
+      const res = await window.storage.get(STORAGE_KEY, true);
+      records = res && res.value ? JSON.parse(res.value) : [];
+    }catch(e){
+      records = [];
+    }
   }
   renderTabs();
   document.getElementById('idPrefix').textContent = currentMachine().prefix;
@@ -247,12 +266,17 @@ async function loadRecords(){
 }
 
 async function persist(){
+  if(!storageAvailable){
+    // No storage backend in this environment — keep working in-memory for the session.
+    return { ok:true };
+  }
   try{
     const result = await window.storage.set(STORAGE_KEY, JSON.stringify(records), true);
-    if(!result) throw new Error('no result');
-    return true;
+    if(!result) throw new Error('Storage returned no result');
+    return { ok:true };
   }catch(e){
-    return false;
+    console.error('Persist failed:', e);
+    return { ok:false, error: (e && e.message) ? e.message : String(e) };
   }
 }
 
@@ -293,8 +317,8 @@ async function saveEntry(){
     records.unshift(entry);
   }
 
-  const ok = await persist();
-  if(ok){
+  const res = await persist();
+  if(res.ok){
     setStatus(editingId ? 'Entry updated.' : 'Entry saved.', true);
     // Keep Expanding Type, Size, Condition, Remarks as-is for fast repeat entry.
     // Only clear the ID number so the user doesn't accidentally duplicate an ID.
@@ -307,7 +331,7 @@ async function saveEntry(){
     renderFilterOptions();
     renderTable();
   } else {
-    setStatus('Failed to save — please try again.', false);
+    setStatus('Failed to save: ' + res.error, false);
   }
 }
 
@@ -346,10 +370,11 @@ function cancelEdit(){
 
 async function deleteEntry(recId){
   if(!confirm('Delete this record?')) return;
+  const backup = records;
   records = records.filter(r => r.id !== recId);
-  const ok = await persist();
-  if(ok){ renderFilterOptions(); renderTable(); }
-  else alert('Failed to delete — please try again.');
+  const res = await persist();
+  if(res.ok){ renderFilterOptions(); renderTable(); }
+  else { records = backup; alert('Failed to delete: ' + res.error); }
 }
 
 async function clearAllRecords(){
@@ -358,15 +383,15 @@ async function clearAllRecords(){
 
   clearBackup = records;
   records = [];
-  const ok = await persist();
-  if(ok){
+  const res = await persist();
+  if(res.ok){
     renderFilterOptions();
     renderTable();
     showUndoBanner(`All records cleared (${clearBackup.length} entries).`);
   } else {
     records = clearBackup;
     clearBackup = null;
-    alert('Failed to clear — please try again.');
+    alert('Failed to clear: ' + res.error);
   }
 }
 
@@ -387,14 +412,14 @@ function hideUndoBanner(){
 async function undoClear(){
   if(!clearBackup) return;
   records = clearBackup;
-  const ok = await persist();
-  if(ok){
+  const res = await persist();
+  if(res.ok){
     hideUndoBanner();
     renderFilterOptions();
     renderTable();
     setStatus('Records restored.', true);
   } else {
-    alert('Failed to restore — please try again.');
+    alert('Failed to restore: ' + res.error);
   }
 }
 
