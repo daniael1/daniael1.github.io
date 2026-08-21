@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SMT DA Wafer Adapter Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#0f172a; --card:#1e293b; --card2:#243349; --border:#334155;
+    --text:#e2e8f0; --muted:#94a3b8; --accent:#3b82f6;
+    --good:#22c55e; --bad:#ef4444; --warn:#f59e0b;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    background:var(--bg); color:var(--text); padding:16px;
+  }
+  .wrap{max-width:900px; margin:0 auto;}
+  h1{font-size:20px; margin:0 0 4px;}
+  .sub{color:var(--muted); font-size:13px; margin-bottom:16px;}
+
+  .tabs{display:flex; gap:6px; margin-bottom:16px; border-bottom:1px solid var(--border);}
+  .tab-btn{
+    flex:1; background:transparent; border:none; color:var(--muted); padding:10px 8px;
+    font-size:14px; font-weight:600; cursor:pointer; border-bottom:2px solid transparent;
+    transition:all .15s;
+  }
+  .tab-btn.active{color:var(--accent); border-bottom-color:var(--accent);}
+  .tab-btn:hover:not(.active){color:var(--text);}
+
+  .card{
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:16px; margin-bottom:16px;
+  }
+  .card h2{font-size:14px; margin:0 0 12px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em;}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  @media (max-width:520px){.grid{grid-template-columns:1fr;}}
+  label{display:block; font-size:12px; color:var(--muted); margin-bottom:4px;}
+  input, select, textarea{
+    width:100%; background:var(--card2); border:1px solid var(--border); color:var(--text);
+    padding:9px 10px; border-radius:8px; font-size:14px; font-family:inherit;
+  }
+  input:focus, select:focus, textarea:focus{outline:2px solid var(--accent); border-color:var(--accent);}
+  textarea{resize:vertical; min-height:38px;}
+  .full{grid-column:1/-1;}
+  .id-input-group{display:flex; align-items:stretch;}
+  .id-prefix{
+    background:var(--border); color:var(--text); padding:9px 12px; border-radius:8px 0 0 8px;
+    font-weight:700; font-size:14px; display:flex; align-items:center;
+  }
+  .id-input-group input{border-radius:0 8px 8px 0; border-left:none;}
+  .btnrow{display:flex; gap:8px; margin-top:14px; flex-wrap:wrap;}
+  button{
+    border:none; border-radius:8px; padding:10px 16px; font-size:14px; font-weight:600;
+    cursor:pointer; transition:opacity .15s;
+  }
+  button:active{opacity:.75;}
+  .primary{background:var(--accent); color:white;}
+  .secondary{background:var(--card2); color:var(--text); border:1px solid var(--border);}
+  .danger{background:transparent; color:var(--bad); border:1px solid var(--bad);}
+  .toolbar{display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; align-items:center;}
+  .toolbar input[type=text]{flex:1; min-width:140px;}
+  .count{font-size:12px; color:var(--muted); margin-left:auto;}
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th, td{padding:8px 6px; text-align:left; border-bottom:1px solid var(--border); vertical-align:top;}
+  th{color:var(--muted); font-weight:600; font-size:11px; text-transform:uppercase; position:sticky; top:0; background:var(--card);}
+  tr:hover td{background:rgba(59,130,246,0.06);}
+  .tag{display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600;}
+  .tag-good{background:rgba(34,197,94,.15); color:var(--good);}
+  .tag-bad{background:rgba(239,68,68,.15); color:var(--bad);}
+  .tag-warn{background:rgba(245,158,11,.15); color:var(--warn);}
+  .tag-default{background:rgba(148,163,184,.15); color:var(--muted);}
+  .row-actions{white-space:nowrap;}
+  .row-actions button{padding:5px 8px; font-size:12px; margin-right:4px;}
+  .empty{text-align:center; color:var(--muted); padding:24px 0; font-size:13px;}
+  .tablewrap{overflow-x:auto; max-height:480px; overflow-y:auto;}
+  .status-msg{font-size:12px; margin-top:8px; min-height:16px;}
+  .status-ok{color:var(--good);}
+  .status-err{color:var(--bad);}
+  .loading{color:var(--muted); font-size:13px; padding:12px 0;}
+  .undo-banner{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:rgba(245,158,11,.12); border:1px solid var(--warn); color:var(--warn);
+    padding:8px 12px; border-radius:8px; margin-bottom:10px; font-size:13px;
+  }
+  .undo-banner button{padding:5px 12px; font-size:12px;}
+  .btn-options{display:flex; flex-wrap:wrap; gap:6px;}
+  .opt-btn{
+    background:var(--card2); color:var(--text); border:1px solid var(--border);
+    padding:8px 12px; border-radius:999px; font-size:13px; font-weight:500;
+  }
+  .opt-btn.selected{background:var(--accent); border-color:var(--accent); color:white; font-weight:700;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>SMT DA Wafer Adapter Tracker</h1>
+  <div class="sub">Log wafer adapter ID, size, and condition checks — filled in by handsome SMT PM Techs guy ;).</div>
+
+  <div class="tabs" id="tabs"></div>
+
+  <div class="card">
+    <h2 id="formTitle">Add Entry</h2>
+    <div class="grid">
+      <div>
+        <label>Wafer Adaptor ID *</label>
+        <div class="id-input-group">
+          <span class="id-prefix" id="idPrefix">C</span>
+          <input id="f_idnum" type="text" inputmode="numeric" placeholder="e.g. 1, 12, 100">
+        </div>
+      </div>
+      <div>
+        <label>Expanding Type</label>
+        <div class="btn-options" id="f_type_group">
+          <button type="button" class="opt-btn" data-value="Screw" onclick="selectOption('type','Screw')">Screw</button>
+          <button type="button" class="opt-btn" data-value="Clamper" onclick="selectOption('type','Clamper')">Clamper</button>
+          <button type="button" class="opt-btn" data-value="GelPak" onclick="selectOption('type','GelPak')">GelPak</button>
+          <button type="button" class="opt-btn" data-value="Unknown" onclick="selectOption('type','Unknown')">Unknown</button>
+        </div>
+      </div>
+      <div>
+        <label>Size (Inch) *</label>
+        <div class="btn-options" id="f_size_group">
+          <button type="button" class="opt-btn" data-value="6" onclick="selectOption('size','6')">6"</button>
+          <button type="button" class="opt-btn" data-value="8" onclick="selectOption('size','8')">8"</button>
+        </div>
+      </div>
+      <div class="full">
+        <label>Condition Check *</label>
+        <div class="btn-options" id="f_condition_group">
+          <button type="button" class="opt-btn" data-value="Good" onclick="selectOption('condition','Good')">Good</button>
+          <button type="button" class="opt-btn" data-value="In Use" onclick="selectOption('condition','In Use')">In Use</button>
+          <button type="button" class="opt-btn" data-value="NTR" onclick="selectOption('condition','NTR')">NTR</button>
+          <button type="button" class="opt-btn" data-value="Bad Condition" onclick="selectOption('condition','Bad Condition')">Bad Condition</button>
+          <button type="button" class="opt-btn" data-value="Sent to Vendor" onclick="selectOption('condition','Sent to Vendor')">Sent to Vendor</button>
+          <button type="button" class="opt-btn" data-value="Quarantined" onclick="selectOption('condition','Quarantined')">Quarantined</button>
+          <button type="button" class="opt-btn" data-value="DOC" onclick="selectOption('condition','DOC')">DOC</button>
+        </div>
+      </div>
+      <div class="full">
+        <label>Remarks</label>
+        <textarea id="f_remarks" placeholder="e.g. worn out ring, missing screw, bent, services needed..."></textarea>
+      </div>
+    </div>
+    <div class="btnrow">
+      <button class="primary" onclick="saveEntry()">Save Entry</button>
+      <button class="secondary" id="cancelEditBtn" style="display:none" onclick="cancelEdit()">Cancel Edit</button>
+    </div>
+    <div id="formStatus" class="status-msg"></div>
+  </div>
+
+  <div class="card">
+    <h2 id="recordsTitle">Records</h2>
+    <div class="toolbar">
+      <input type="text" id="search" placeholder="Search ID, remarks..." oninput="renderTable()">
+      <select id="filterCondition" onchange="renderTable()">
+        <option value="">All conditions</option>
+      </select>
+      <button class="secondary" onclick="exportExcel()">Export to Excel</button>
+      <button class="danger" onclick="clearAllRecords()">Clear All</button>
+      <span class="count" id="recordCount"></span>
+    </div>
+    <div id="undoBanner" class="undo-banner" style="display:none">
+      <span id="undoMsg"></span>
+      <button class="secondary" onclick="undoClear()">Undo</button>
+    </div>
+    <div id="tableArea" class="tablewrap"><div class="loading">Loading records…</div></div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'wafer_adapter_records';
+const MACHINES = [
+  { key:'MCM12',   label:'MCM-12',           prefix:'C' },
+  { key:'DATACON', label:'DATACON Evo 2200', prefix:'D' },
+  { key:'MEGA',    label:'MCM MEGA-G',       prefix:'M' }
+];
+
+let records = [];
+let editingId = null;
+let activeMachine = MACHINES[0].key;
+let clearBackup = null;
+let undoTimer = null;
+let selectedType = '';
+let selectedCondition = '';
+let selectedSize = '';
+
+function selectOption(field, value){
+  if(field === 'type'){
+    selectedType = (selectedType === value) ? '' : value;
+    updateOptionButtons('f_type_group', selectedType);
+  } else if(field === 'condition'){
+    selectedCondition = (selectedCondition === value) ? '' : value;
+    updateOptionButtons('f_condition_group', selectedCondition);
+  } else if(field === 'size'){
+    selectedSize = (selectedSize === value) ? '' : value;
+    updateOptionButtons('f_size_group', selectedSize);
+  }
+}
+
+function updateOptionButtons(groupId, value){
+  const group = document.getElementById(groupId);
+  [...group.children].forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.value === value);
+  });
+}
+
+function currentMachine(){
+  return MACHINES.find(m => m.key === activeMachine);
+}
+
+function uid(){ return 'w' + Date.now() + Math.random().toString(36).slice(2,7); }
+
+function renderTabs(){
+  const tabs = document.getElementById('tabs');
+  tabs.innerHTML = MACHINES.map(m => `
+    <button class="tab-btn ${m.key === activeMachine ? 'active' : ''}" onclick="switchTab('${m.key}')">${m.label}</button>
+  `).join('');
+}
+
+function switchTab(key){
+  activeMachine = key;
+  editingId = null;
+  document.getElementById('formTitle').textContent = 'Add Entry';
+  document.getElementById('cancelEditBtn').style.display = 'none';
+  document.getElementById('idPrefix').textContent = currentMachine().prefix;
+  document.getElementById('recordsTitle').textContent = currentMachine().label + ' Records';
+  document.getElementById('f_idnum').value = '';
+  renderTabs();
+  renderFilterOptions();
+  renderTable();
+}
+
+async function loadRecords(){
+  try{
+    const res = await window.storage.get(STORAGE_KEY, true);
+    records = res && res.value ? JSON.parse(res.value) : [];
+  }catch(e){
+    records = [];
+  }
+  renderTabs();
+  document.getElementById('idPrefix').textContent = currentMachine().prefix;
+  document.getElementById('recordsTitle').textContent = currentMachine().label + ' Records';
+  renderFilterOptions();
+  renderTable();
+}
+
+async function persist(){
+  try{
+    const result = await window.storage.set(STORAGE_KEY, JSON.stringify(records), true);
+    if(!result) throw new Error('no result');
+    return true;
+  }catch(e){
+    return false;
+  }
+}
+
+function setStatus(msg, ok){
+  const el = document.getElementById('formStatus');
+  el.textContent = msg;
+  el.className = 'status-msg ' + (ok ? 'status-ok' : 'status-err');
+  if(msg){ setTimeout(()=>{ el.textContent=''; }, 2500); }
+}
+
+async function saveEntry(){
+  const idnum = document.getElementById('f_idnum').value.trim();
+  const size = selectedSize;
+  const condition = selectedCondition;
+  const type = selectedType;
+  const remarks = document.getElementById('f_remarks').value.trim();
+  const prefix = currentMachine().prefix;
+
+  if(!idnum || !size || !condition){
+    setStatus('Wafer Adaptor ID, Size, and Condition Check are required.', false);
+    return;
+  }
+
+  const waferId = prefix + idnum;
+  const machineLabel = currentMachine().label;
+
+  const entry = {
+    id: editingId || uid(),
+    waferId, machineKey: activeMachine, machine: machineLabel,
+    type, size, condition, remarks,
+    dateChecked: new Date().toISOString()
+  };
+
+  if(editingId){
+    const idx = records.findIndex(r => r.id === editingId);
+    if(idx > -1) records[idx] = {...records[idx], ...entry};
+  } else {
+    records.unshift(entry);
+  }
+
+  const ok = await persist();
+  if(ok){
+    setStatus(editingId ? 'Entry updated.' : 'Entry saved.', true);
+    // Keep Expanding Type, Size, Condition, Remarks as-is for fast repeat entry.
+    // Only clear the ID number so the user doesn't accidentally duplicate an ID.
+    document.getElementById('f_idnum').value = '';
+    if(editingId){
+      editingId = null;
+      document.getElementById('formTitle').textContent = 'Add Entry';
+      document.getElementById('cancelEditBtn').style.display = 'none';
+    }
+    renderFilterOptions();
+    renderTable();
+  } else {
+    setStatus('Failed to save — please try again.', false);
+  }
+}
+
+function editEntry(recId){
+  const r = records.find(x => x.id === recId);
+  if(!r) return;
+  if(r.machineKey !== activeMachine){
+    activeMachine = r.machineKey;
+    renderTabs();
+    document.getElementById('idPrefix').textContent = currentMachine().prefix;
+    document.getElementById('recordsTitle').textContent = currentMachine().label + ' Records';
+    renderFilterOptions();
+    renderTable();
+  }
+  editingId = recId;
+  const numPart = (r.waferId || '').replace(currentMachine().prefix, '');
+  document.getElementById('f_idnum').value = numPart;
+  selectedType = r.type || '';
+  selectedCondition = r.condition || '';
+  selectedSize = r.size || '';
+  updateOptionButtons('f_type_group', selectedType);
+  updateOptionButtons('f_condition_group', selectedCondition);
+  updateOptionButtons('f_size_group', selectedSize);
+  document.getElementById('f_remarks').value = r.remarks || '';
+  document.getElementById('formTitle').textContent = 'Edit Entry';
+  document.getElementById('cancelEditBtn').style.display = 'inline-block';
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function cancelEdit(){
+  editingId = null;
+  document.getElementById('f_idnum').value = '';
+  document.getElementById('formTitle').textContent = 'Add Entry';
+  document.getElementById('cancelEditBtn').style.display = 'none';
+}
+
+async function deleteEntry(recId){
+  if(!confirm('Delete this record?')) return;
+  records = records.filter(r => r.id !== recId);
+  const ok = await persist();
+  if(ok){ renderFilterOptions(); renderTable(); }
+  else alert('Failed to delete — please try again.');
+}
+
+async function clearAllRecords(){
+  if(records.length === 0){ alert('There are no records to clear.'); return; }
+  if(!confirm(`This will clear ALL records across every machine tab (${records.length} total). Continue?`)) return;
+
+  clearBackup = records;
+  records = [];
+  const ok = await persist();
+  if(ok){
+    renderFilterOptions();
+    renderTable();
+    showUndoBanner(`All records cleared (${clearBackup.length} entries).`);
+  } else {
+    records = clearBackup;
+    clearBackup = null;
+    alert('Failed to clear — please try again.');
+  }
+}
+
+function showUndoBanner(msg){
+  const banner = document.getElementById('undoBanner');
+  document.getElementById('undoMsg').textContent = msg;
+  banner.style.display = 'flex';
+  if(undoTimer) clearTimeout(undoTimer);
+  undoTimer = setTimeout(hideUndoBanner, 15000);
+}
+
+function hideUndoBanner(){
+  document.getElementById('undoBanner').style.display = 'none';
+  clearBackup = null;
+  if(undoTimer){ clearTimeout(undoTimer); undoTimer = null; }
+}
+
+async function undoClear(){
+  if(!clearBackup) return;
+  records = clearBackup;
+  const ok = await persist();
+  if(ok){
+    hideUndoBanner();
+    renderFilterOptions();
+    renderTable();
+    setStatus('Records restored.', true);
+  } else {
+    alert('Failed to restore — please try again.');
+  }
+}
+
+function conditionTagClass(cond){
+  const c = (cond||'').toLowerCase();
+  if(c.includes('good') || c === 'in use') return 'tag-good';
+  if(c.includes('bad') || c.includes('quarantin')) return 'tag-bad';
+  if(c.includes('ntr') || c.includes('vendor') || c.includes('doc')) return 'tag-warn';
+  return 'tag-default';
+}
+
+function renderFilterOptions(){
+  const sel = document.getElementById('filterCondition');
+  const current = sel.value;
+  const conditions = [...new Set(records.filter(r => r.machineKey === activeMachine).map(r => r.condition).filter(Boolean))];
+  sel.innerHTML = '<option value="">All conditions</option>' +
+    conditions.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+  sel.value = current;
+}
+
+function escapeHtml(s){
+  return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+function renderTable(){
+  const area = document.getElementById('tableArea');
+  const search = document.getElementById('search').value.toLowerCase();
+  const filterCond = document.getElementById('filterCondition').value;
+
+  let filtered = records.filter(r => {
+    if(r.machineKey !== activeMachine) return false;
+    const matchesSearch = !search || [r.waferId, r.type, r.remarks].join(' ').toLowerCase().includes(search);
+    const matchesCond = !filterCond || r.condition === filterCond;
+    return matchesSearch && matchesCond;
+  });
+
+  document.getElementById('recordCount').textContent =
+    `${filtered.length} of ${records.filter(r => r.machineKey === activeMachine).length} records`;
+
+  if(filtered.length === 0){
+    area.innerHTML = '<div class="empty">No records yet for this machine. Add an entry above to get started.</div>';
+    return;
+  }
+
+  const rows = filtered.map(r => `
+    <tr>
+      <td><strong>${escapeHtml(r.waferId)}</strong></td>
+      <td>${escapeHtml(r.type)}</td>
+      <td>${escapeHtml(r.size)}</td>
+      <td><span class="tag ${conditionTagClass(r.condition)}">${escapeHtml(r.condition)}</span></td>
+      <td>${escapeHtml(r.remarks)}</td>
+      <td>${r.dateChecked ? new Date(r.dateChecked).toLocaleDateString() : ''}</td>
+      <td class="row-actions">
+        <button class="secondary" onclick="editEntry('${r.id}')">Edit</button>
+        <button class="danger" onclick="deleteEntry('${r.id}')">Del</button>
+      </td>
+    </tr>
+  `).join('');
+
+  area.innerHTML = `
+    <table>
+      <thead><tr>
+        <th>ID</th><th>Type</th><th>Size</th><th>Condition</th>
+        <th>Remarks</th><th>Date</th><th></th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function exportExcel(){
+  if(records.length === 0){ alert('No records to export yet.'); return; }
+  const wb = XLSX.utils.book_new();
+  MACHINES.forEach(m => {
+    const data = records.filter(r => r.machineKey === m.key).map(r => ({
+      'Wafer Adaptor ID': r.waferId,
+      'Expanding Type': r.type,
+      'Size (Inch)': r.size,
+      'Condition Check': r.condition,
+      'Remarks': r.remarks,
+      'Date Checked': r.dateChecked ? new Date(r.dateChecked).toLocaleString() : ''
+    }));
+    const ws = XLSX.utils.json_to_sheet(data.length ? data : [{}]);
+    ws['!cols'] = [{wch:16},{wch:14},{wch:10},{wch:16},{wch:30},{wch:18}];
+    XLSX.utils.book_append_sheet(wb, ws, m.label.slice(0,31));
+  });
+  const dateStr = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `SMT_Wafer_Adapter_Data_${dateStr}.xlsx`);
+}
+
+loadRecords();
+</script>
+</body>
+</html>
