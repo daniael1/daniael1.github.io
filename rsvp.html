@@ -266,8 +266,23 @@
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: payload.toString()
     })
-    .then(res => res.json().catch(() => ({ result: 'error' })))
-    .then(data => {
+    .then(res => res.text().then(text => ({ status: res.status, text: text })))
+    .then(({ status, text }) => {
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseErr) {
+        // The server didn't return clean JSON — log the raw response so it can be
+        // inspected in the browser console (F12 > Console) while setting this up.
+        console.error('RSVP: server response was not valid JSON. HTTP status ' + status + '. Raw response below:');
+        console.error(text);
+        statusBox.className = 'status error';
+        statusBox.textContent = 'Server returned an unexpected response (HTTP ' + status + '). Open the browser console (F12) for details, or check save.php on the server.';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit RSVP';
+        return;
+      }
+
       if (data.result === 'success') {
         formView.style.display = 'none';
         successView.style.display = 'block';
