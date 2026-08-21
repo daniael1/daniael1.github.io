@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RSVP</title>
+<style>
+  :root {
+    --accent: #2f6f4f;
+    --accent-dark: #234f38;
+    --bg: #f4f1ea;
+    --card-bg: #ffffff;
+    --text: #2a2a2a;
+    --muted: #6b6b6b;
+    --border: #e0ddd3;
+    --error: #b3261e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    justify-content: center;
+    padding: 40px 16px;
+    min-height: 100vh;
+  }
+  .card {
+    background: var(--card-bg);
+    max-width: 480px;
+    width: 100%;
+    padding: 36px 32px;
+    border-radius: 14px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    border: 1px solid var(--border);
+  }
+  h1 {
+    font-size: 1.6rem;
+    margin: 0 0 4px;
+    color: var(--accent-dark);
+  }
+  .subtitle {
+    color: var(--muted);
+    margin: 0 0 28px;
+    font-size: 0.95rem;
+  }
+  label {
+    display: block;
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin: 18px 0 6px;
+  }
+  input[type="text"],
+  input[type="tel"],
+  input[type="email"],
+  input[type="number"],
+  textarea,
+  select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    background: #fff;
+    color: var(--text);
+  }
+  input:focus, textarea:focus, select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(47,111,79,0.15);
+  }
+  .radio-group {
+    display: flex;
+    gap: 10px;
+    margin-top: 6px;
+  }
+  .radio-option {
+    flex: 1;
+    position: relative;
+  }
+  .radio-option input {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    cursor: pointer;
+  }
+  .radio-option label {
+    margin: 0;
+    text-align: center;
+    padding: 10px 8px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--text);
+    transition: all 0.15s ease;
+  }
+  .radio-option input:checked + label {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  textarea { resize: vertical; min-height: 70px; }
+  .guests-field { display: none; }
+  .guests-field.show { display: block; }
+  button {
+    width: 100%;
+    margin-top: 28px;
+    padding: 13px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  button:hover { background: var(--accent-dark); }
+  button:disabled { opacity: 0.6; cursor: not-allowed; }
+  .field-error {
+    color: var(--error);
+    font-size: 0.8rem;
+    margin-top: 4px;
+    display: none;
+  }
+  .status {
+    margin-top: 18px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    display: none;
+  }
+  .status.success {
+    display: block;
+    background: #e7f4ec;
+    color: var(--accent-dark);
+    border: 1px solid #bfe3cc;
+  }
+  .status.error {
+    display: block;
+    background: #fbe9e7;
+    color: var(--error);
+    border: 1px solid #f3c6c1;
+  }
+  .success-view { text-align: center; padding: 20px 0; }
+  .success-view .icon { font-size: 2.5rem; margin-bottom: 10px; }
+  .success-view h2 { margin: 0 0 8px; color: var(--accent-dark); }
+  .success-view p { color: var(--muted); margin: 0; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div id="formView">
+    <h1>You're Invited</h1>
+    <p class="subtitle">Please RSVP below by [insert date].</p>
+
+    <form id="rsvpForm" novalidate>
+      <label for="name">Full Name *</label>
+      <input type="text" id="name" name="name" required>
+      <div class="field-error" id="nameError">Please enter your name.</div>
+
+      <label>Will you be attending? *</label>
+      <div class="radio-group">
+        <div class="radio-option">
+          <input type="radio" id="attendYes" name="attending" value="Yes" required>
+          <label for="attendYes">Yes, I'll be there</label>
+        </div>
+        <div class="radio-option">
+          <input type="radio" id="attendNo" name="attending" value="No" required>
+          <label for="attendNo">Can't make it</label>
+        </div>
+      </div>
+      <div class="field-error" id="attendingError">Please select an option.</div>
+
+      <div class="guests-field" id="guestsField">
+        <label for="guests">Number of Guests (including yourself)</label>
+        <input type="number" id="guests" name="guests" min="1" max="20" value="1">
+      </div>
+
+      <label for="contact">Phone or Email *</label>
+      <input type="text" id="contact" name="contact" placeholder="e.g. 012-3456789 or name@email.com" required>
+      <div class="field-error" id="contactError">Please enter a phone number or email.</div>
+
+      <label for="message">Message (optional)</label>
+      <textarea id="message" name="message" placeholder="Dietary requirements, well wishes, etc."></textarea>
+
+      <button type="submit" id="submitBtn">Submit RSVP</button>
+      <div class="status" id="statusBox"></div>
+    </form>
+  </div>
+
+  <div class="success-view" id="successView" style="display:none;">
+    <div class="icon">✅</div>
+    <h2>RSVP Received</h2>
+    <p>Thank you — your response has been recorded.</p>
+  </div>
+</div>
+
+<script>
+  // ⚠️ Replace this with your own Apps Script Web App URL (see setup instructions).
+  const SCRIPT_URL = "PASTE_YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE";
+
+  const form = document.getElementById('rsvpForm');
+  const guestsField = document.getElementById('guestsField');
+  const submitBtn = document.getElementById('submitBtn');
+  const statusBox = document.getElementById('statusBox');
+  const formView = document.getElementById('formView');
+  const successView = document.getElementById('successView');
+
+  document.querySelectorAll('input[name="attending"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      guestsField.classList.toggle('show', radio.value === 'Yes' && radio.checked);
+    });
+  });
+
+  function showError(id, show) {
+    document.getElementById(id).style.display = show ? 'block' : 'none';
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    const name = document.getElementById('name').value.trim();
+    const attending = form.querySelector('input[name="attending"]:checked');
+    const contact = document.getElementById('contact').value.trim();
+    const guests = document.getElementById('guests').value || '1';
+    const message = document.getElementById('message').value.trim();
+
+    let valid = true;
+    showError('nameError', !name); if (!name) valid = false;
+    showError('attendingError', !attending); if (!attending) valid = false;
+    showError('contactError', !contact); if (!contact) valid = false;
+    if (!valid) return;
+
+    if (SCRIPT_URL.indexOf('PASTE_YOUR') === 0) {
+      statusBox.className = 'status error';
+      statusBox.textContent = 'Form is not connected to Google Sheets yet — set SCRIPT_URL in the HTML file.';
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Submitting...';
+    statusBox.className = 'status';
+    statusBox.textContent = '';
+
+    const payload = new URLSearchParams({
+      name: name,
+      attending: attending.value,
+      guests: attending.value === 'Yes' ? guests : '0',
+      contact: contact,
+      message: message
+    });
+
+    fetch(SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: payload.toString()
+    })
+    .then(() => {
+      formView.style.display = 'none';
+      successView.style.display = 'block';
+    })
+    .catch(() => {
+      statusBox.className = 'status error';
+      statusBox.textContent = 'Something went wrong sending your RSVP. Please try again.';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Submit RSVP';
+    });
+  });
+</script>
+
+</body>
+</html>
