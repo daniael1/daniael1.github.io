@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;1,500;1,600&family=Karla:wght@400;500;700&family=VT323&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
   :root{
     --paper:#F4ECEE; --card:#FFFFFF; --ink:#2E2433; --muted:#76687A;
@@ -240,7 +240,7 @@ const CONFIG = {
 
 const $ = s => document.querySelector(s);
 const DEMO = CONFIG.SUPABASE_URL.startsWith("YOUR");
-const sb = DEMO ? null : supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+const sb = DEMO || typeof supabase==="undefined" ? null : supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
 let demoPosts = [], demoLoggedIn = false, coupleFilter = "all";
 
 $("#coupleNames").textContent = CONFIG.COUPLE_NAMES;
@@ -319,9 +319,13 @@ $("#postForm").addEventListener("submit", async e => {
     if (vis==="public") setTimeout(() => show("wall"), 900);
   }catch(err){
     console.error(err);
-    setStatus(st, err.code==="FULL"
-      ? "The camera roll is full. You can still post a wish."
-      : "Upload failed. Check your connection and post again.", "err");
+    if (err.code==="FULL") setStatus(st, "The camera roll is full. You can still post a wish.", "err");
+    else {
+      const detail = `[${err.stage||"NETWORK"}] ${err.statusCode||err.status||err.code||""} ${err.message||err}`.trim();
+      setStatus(st, "Upload failed. Check your connection and post again.", "err");
+      const d = document.createElement("small"); d.style.cssText = "display:block;font-weight:400;opacity:.8;margin-top:4px";
+      d.textContent = "Details: " + detail; st.appendChild(d);
+    }
   }finally{ btn.disabled = false; }
 });
 
@@ -342,10 +346,10 @@ async function createPost({name, msg, kind, file, vis}){
     media_path = `${crypto.randomUUID()}.${ext}`;
     const bucket = vis==="public" ? "public-media" : "private-media";
     const { error } = await sb.storage.from(bucket).upload(media_path, file, { contentType:file.type });
-    if (error) throw error;
+    if (error){ error.stage = "STORAGE"; throw error; }
   }
   const { error } = await sb.from("posts").insert({ guest_name:name, message:msg||null, media_path, media_type:kind, visibility:vis });
-  if (error) throw error;
+  if (error){ error.stage = "DATABASE"; throw error; }
 }
 
 async function fetchPosts(){
