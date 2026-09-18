@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wedding POV Camera + RSVP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;1,500;1,600&family=Karla:wght@400;500;700&family=VT323&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --paper:#F4ECEE; --card:#FFFFFF; --ink:#2E2433; --muted:#76687A;
+    --line:#E3D4D8; --sage:#5F7A5A; --sage-soft:#E4EBE0; --stamp:#FF8A3D;
+    --serif:"Cormorant Garamond", Georgia, serif;
+    --sans:"Karla", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --stampfont:"VT323", ui-monospace, monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.55 var(--sans)}
+  img,video{max-width:100%;display:block}
+  button,input,textarea{font:inherit;color:inherit}
+  :focus-visible{outline:2px solid var(--sage);outline-offset:2px}
+
+  .wrap{max-width:560px;margin:0 auto;padding:0 18px 80px}
+
+  /* Hero */
+  .hero{padding:40px 0 20px;text-align:center}
+  .hero p{margin:0;color:var(--muted)}
+  .names{font:italic 600 clamp(2.6rem,11vw,3.8rem)/1.02 var(--serif);margin:8px 0 12px;letter-spacing:-.01em}
+  .counter{display:inline-flex;align-items:center;gap:10px;margin-top:18px;padding:6px 14px;
+    background:var(--ink);color:#fff;border-radius:999px;font-size:.9rem}
+  .counter b{font:400 1.5rem/1 var(--stampfont);color:var(--stamp)}
+
+  /* Tabs */
+  nav{position:sticky;top:0;z-index:5;background:var(--paper);display:flex;gap:6px;padding:10px 0;border-bottom:1px solid var(--line);margin-bottom:22px}
+  nav button{flex:1;border:0;background:none;padding:10px 6px;border-radius:10px;cursor:pointer;color:var(--muted);font-weight:500}
+  nav button[aria-selected="true"]{background:var(--ink);color:#fff}
+
+  [hidden]{display:none!important}
+
+  /* Form */
+  label.f{display:block;font-weight:700;margin:18px 0 6px}
+  .input{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+  textarea.input{min-height:110px;resize:vertical}
+  .seg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .seg input,.vis input{position:absolute;opacity:0;pointer-events:none}
+  .seg label{text-align:center;padding:12px 6px;border:1px solid var(--line);border-radius:10px;background:var(--card);cursor:pointer}
+  .seg input:checked+label{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);font-weight:700}
+  .seg input:focus-visible+label,.vis input:focus-visible+label{outline:2px solid var(--sage);outline-offset:2px}
+  .pick{width:100%;padding:28px 12px;border:1.5px dashed var(--muted);border-radius:12px;background:transparent;cursor:pointer;color:var(--muted)}
+  .preview{margin-top:10px;border-radius:10px;overflow:hidden}
+  .vis{display:grid;gap:8px}
+  .vis label{display:block;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--card);cursor:pointer}
+  .vis label small{display:block;color:var(--muted)}
+  .vis input:checked+label{border-color:var(--sage);background:var(--sage-soft)}
+  .btn{width:100%;margin-top:22px;padding:14px;border:0;border-radius:12px;background:var(--sage);color:#fff;font-weight:700;cursor:pointer}
+  .btn:disabled{opacity:.6;cursor:progress}
+  .btn.ghost{background:none;color:var(--ink);border:1px solid var(--line);margin-top:10px}
+  .status{margin-top:12px;min-height:1.5em;font-weight:500}
+  .status.err{color:#B3261E}.status.ok{color:var(--sage)}
+
+  /* Prints (feed) */
+  .feed{display:grid;gap:26px}
+  .print{background:var(--card);padding:12px 12px 16px;border-radius:4px;box-shadow:0 1px 0 var(--line),0 10px 24px -18px rgba(46,36,51,.55)}
+  .print:nth-child(odd){transform:rotate(-.6deg)}
+  .print:nth-child(even){transform:rotate(.5deg)}
+  .shot{position:relative;background:#1d1720;border-radius:2px;overflow:hidden}
+  .shot img,.shot video{width:100%;max-height:70vh;object-fit:cover}
+  .stamp{position:absolute;right:10px;bottom:8px;font:400 1.35rem/1 var(--stampfont);color:var(--stamp);
+    text-shadow:0 0 6px rgba(255,138,61,.55);letter-spacing:.06em;pointer-events:none}
+  .wish{font:italic 500 1.45rem/1.35 var(--serif);padding:18px 8px 6px;white-space:pre-wrap}
+  .cap{margin:12px 2px 0;white-space:pre-wrap}
+  .meta{display:flex;justify-content:space-between;gap:10px;margin:10px 2px 0;color:var(--muted);font-size:.88rem}
+  .meta strong{color:var(--ink)}
+  .tag{display:inline-block;margin:10px 2px 0;padding:2px 10px;border-radius:999px;background:var(--sage-soft);color:var(--sage);font-size:.8rem;font-weight:700}
+  .del{margin-top:10px;border:0;background:none;color:#B3261E;cursor:pointer;padding:4px 2px;font-size:.88rem}
+  .empty{text-align:center;color:var(--muted);padding:40px 10px}
+  .empty button{margin-top:12px}
+  .demo{background:var(--ink);color:#fff;font-size:.85rem;text-align:center;padding:8px 12px}
+  .chips{display:flex;gap:8px;margin-bottom:16px}
+  .chips button{border:1px solid var(--line);background:var(--card);padding:6px 14px;border-radius:999px;cursor:pointer}
+  .chips button[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .row{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;color:var(--muted)}
+  .row button{border:0;background:none;color:var(--ink);text-decoration:underline;cursor:pointer}
+  .gauge{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:16px}
+  .gauge .bar{height:10px;border-radius:999px;background:var(--line);overflow:hidden;margin-top:8px}
+  .gauge .fill{height:100%;background:var(--sage);width:0}
+  .gauge.warn .fill{background:#C9772B}.gauge.full .fill{background:#B3261E}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+  .stats div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center}
+  .stats b{display:block;font:400 2rem/1 var(--stampfont);color:var(--ink)}
+  .stats span{font-size:.82rem;color:var(--muted)}
+  .tablewrap{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:12px}
+  table{border-collapse:collapse;width:100%;font-size:.9rem}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:500}
+  .yes{color:var(--sage);font-weight:700}.no{color:#B3261E;font-weight:700}
+  select.input{appearance:auto}
+  @media (prefers-reduced-motion:reduce){.print{transform:none!important}}
+</style>
+</head>
+<body>
+<div id="demoBar" class="demo" hidden>Demo mode: posts stay on this device only. Add your Supabase keys to go live.</div>
+
+<div class="wrap">
+  <header class="hero">
+    <p>You're invited to be our photographer</p>
+    <h1 class="names" id="coupleNames"></h1>
+    <p id="weddingDate"></p>
+    <div class="counter" aria-live="polite"><b id="count">00</b> moments on the wall</div>
+  </header>
+
+  <nav role="tablist">
+    <button role="tab" id="t-wall" aria-selected="true" aria-controls="wall">Wall</button>
+    <button role="tab" id="t-add" aria-selected="false" aria-controls="add">Post</button>
+    <button role="tab" id="t-rsvp" aria-selected="false" aria-controls="rsvp">RSVP</button>
+    <button role="tab" id="t-couple" aria-selected="false" aria-controls="couple">Couple</button>
+  </nav>
+
+  <!-- WALL -->
+  <section id="wall" role="tabpanel">
+    <div class="row"><span>Newest first</span><button id="refresh">Refresh</button></div>
+    <div id="wallFeed" class="feed"></div>
+  </section>
+
+  <!-- ADD -->
+  <section id="add" role="tabpanel" hidden>
+    <form id="postForm" novalidate>
+      <label class="f" for="gname">Your name</label>
+      <input class="input" id="gname" maxlength="60" autocomplete="name" placeholder="e.g. Aunty Rosnah" required>
+
+      <label class="f" id="kindLbl">What are you sharing?</label>
+      <div class="seg" role="radiogroup" aria-labelledby="kindLbl">
+        <input type="radio" name="kind" id="k-photo" value="photo" checked><label for="k-photo">Photo</label>
+        <input type="radio" name="kind" id="k-video" value="video"><label for="k-video">Video</label>
+        <input type="radio" name="kind" id="k-wish" value="wish"><label for="k-wish">Wish</label>
+      </div>
+
+      <div id="mediaBox">
+        <label class="f" for="file" id="fileLbl">Your photo</label>
+        <input type="file" id="file" accept="image/*" hidden>
+        <button type="button" class="pick" id="pickBtn">Take or choose a photo</button>
+        <div class="preview" id="preview"></div>
+      </div>
+
+      <label class="f" for="msg" id="msgLbl">Caption (optional)</label>
+      <textarea class="input" id="msg" maxlength="1000" placeholder="What's happening in this moment?"></textarea>
+
+      <label class="f" id="visLbl">Who can see it?</label>
+      <div class="vis" role="radiogroup" aria-labelledby="visLbl">
+        <input type="radio" name="vis" id="v-pub" value="public" checked>
+        <label for="v-pub">Everyone<small>Shows on the wall for all guests</small></label>
+        <input type="radio" name="vis" id="v-priv" value="private">
+        <label for="v-priv">Only the bride and groom<small>A private note just for them</small></label>
+      </div>
+
+      <button class="btn" id="postBtn" type="submit">Post</button>
+      <div class="status" id="postStatus" role="status"></div>
+    </form>
+  </section>
+
+  <!-- RSVP -->
+  <section id="rsvp" role="tabpanel" hidden>
+    <form id="rsvpForm" novalidate>
+      <p>Let the couple know if you're coming.</p>
+      <label class="f" for="r-name">Your name</label>
+      <input class="input" id="r-name" maxlength="60" autocomplete="name">
+
+      <label class="f" for="r-phone">Phone number (optional)</label>
+      <input class="input" id="r-phone" type="tel" maxlength="30" autocomplete="tel" placeholder="e.g. 012-345 6789">
+
+      <label class="f" id="attLbl">Will you attend?</label>
+      <div class="vis" role="radiogroup" aria-labelledby="attLbl">
+        <input type="radio" name="att" id="a-yes" value="yes" checked>
+        <label for="a-yes">Yes, I'll be there</label>
+        <input type="radio" name="att" id="a-no" value="no">
+        <label for="a-no">Sorry, I can't make it</label>
+      </div>
+
+      <div id="paxBox">
+        <label class="f" for="r-pax">Number of people, including you</label>
+        <select class="input" id="r-pax"></select>
+      </div>
+
+      <label class="f" for="r-msg">Message for the couple (optional)</label>
+      <textarea class="input" id="r-msg" maxlength="500"></textarea>
+
+      <button class="btn" type="submit" id="rsvpBtn">Send RSVP</button>
+      <div class="status" id="rsvpStatus" role="status"></div>
+    </form>
+  </section>
+
+  <!-- COUPLE -->
+  <section id="couple" role="tabpanel" hidden>
+    <form id="loginForm" novalidate>
+      <p>Sign in to see every post, including private messages from guests.</p>
+      <label class="f" for="email">Email</label>
+      <input class="input" id="email" type="email" autocomplete="email">
+      <label class="f" for="pw">Password</label>
+      <input class="input" id="pw" type="password" autocomplete="current-password">
+      <button class="btn" type="submit">Sign in</button>
+      <div class="status" id="loginStatus" role="status"></div>
+    </form>
+    <div id="coupleArea" hidden>
+      <div class="gauge" id="gauge"><span id="gaugeText">Storage used</span><div class="bar"><div class="fill" id="gaugeFill"></div></div></div>
+      <div class="chips">
+        <button id="f-all" aria-pressed="true">All posts</button>
+        <button id="f-priv" aria-pressed="false">Private only</button>
+        <button id="f-rsvp" aria-pressed="false">RSVPs</button>
+      </div>
+      <div id="coupleFeed" class="feed"></div>
+      <div id="rsvpPanel" hidden>
+        <div class="stats">
+          <div><b id="s-yes">0</b><span>Attending</span></div>
+          <div><b id="s-pax">0</b><span>Total people</span></div>
+          <div><b id="s-no">0</b><span>Can't come</span></div>
+        </div>
+        <div class="tablewrap"><table>
+          <thead><tr><th>Name</th><th>Status</th><th>Pax</th><th>Phone</th><th>Message</th></tr></thead>
+          <tbody id="rsvpRows"></tbody>
+        </table></div>
+        <button class="btn ghost" id="csvBtn">Download RSVP list (CSV)</button>
+      </div>
+      <button class="btn ghost" id="logout">Sign out</button>
+    </div>
+  </section>
+</div>
+
+<script>
+/* ============ EDIT THESE ============ */
+const CONFIG = {
+    SUPABASE_URL: "https://rtblnsapdfuvfkewhbqc.supabase.co/rest/v1/",        // e.g. https://abcd1234.supabase.co
+    SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ0Ymxuc2FwZGZ1dmZrZXdoYnFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3MzUzOTAsImV4cCI6MjEwNTMxMTM5MH0.Hg5CkMGs8XNEn5teoK3fC04Skiselp9NjK1Rsaz_DUs",
+  COUPLE_NAMES: "Masyi Umar",
+  WEDDING_DATE: "2026-12-19",               // YYYY-MM-DD
+  MAX_VIDEO_MB: 50
+};
+/* ==================================== */
+
+const $ = s => document.querySelector(s);
+const DEMO = CONFIG.SUPABASE_URL.startsWith("YOUR");
+const sb = DEMO ? null : supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+let demoPosts = [], demoLoggedIn = false, coupleFilter = "all";
+
+$("#coupleNames").textContent = CONFIG.COUPLE_NAMES;
+$("#weddingDate").textContent = new Date(CONFIG.WEDDING_DATE + "T00:00:00")
+  .toLocaleDateString(undefined, { day:"numeric", month:"long", year:"numeric" });
+if (DEMO) $("#demoBar").hidden = false;
+
+/* ---------- Tabs ---------- */
+const tabs = ["wall","add","rsvp","couple"];
+function show(id){
+  tabs.forEach(t => {
+    $("#t-"+t).setAttribute("aria-selected", t===id);
+    $("#"+t).hidden = t!==id;
+  });
+  if (id==="wall") loadWall();
+  if (id==="couple") refreshCouple();
+}
+tabs.forEach(t => $("#t-"+t).addEventListener("click", () => show(t)));
+
+/* ---------- Form behaviour ---------- */
+const kindText = {
+  photo:{accept:"image/*", pick:"Take or choose a photo", lbl:"Your photo", msg:"Caption (optional)", ph:"What's happening in this moment?"},
+  video:{accept:"video/*", pick:`Record or choose a video (max ${CONFIG.MAX_VIDEO_MB} MB)`, lbl:"Your video", msg:"Caption (optional)", ph:"What's happening in this moment?"},
+  wish:{msg:"Your wish", ph:"Write something for the couple..."}
+};
+let chosenFile = null;
+function currentKind(){ return document.querySelector('input[name="kind"]:checked').value; }
+function applyKind(){
+  const k = currentKind(), t = kindText[k];
+  $("#mediaBox").hidden = k==="wish";
+  if (k!=="wish"){ $("#file").accept = t.accept; $("#pickBtn").textContent = t.pick; $("#fileLbl").textContent = t.lbl; }
+  $("#msgLbl").textContent = t.msg; $("#msg").placeholder = t.ph;
+  chosenFile = null; $("#file").value = ""; $("#preview").innerHTML = "";
+}
+document.querySelectorAll('input[name="kind"]').forEach(r => r.addEventListener("change", applyKind));
+$("#pickBtn").addEventListener("click", () => $("#file").click());
+$("#file").addEventListener("change", e => {
+  const f = e.target.files[0]; if (!f) return;
+  chosenFile = f; const url = URL.createObjectURL(f); const p = $("#preview"); p.innerHTML = "";
+  const el = document.createElement(f.type.startsWith("video") ? "video" : "img");
+  el.src = url; if (el.tagName==="VIDEO"){ el.controls = true; el.playsInline = true; }
+  p.appendChild(el); $("#pickBtn").textContent = "Change";
+});
+
+async function compressImage(file){
+  if (!file.type.startsWith("image/") || file.type==="image/gif") return file;
+  try{
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, 1920 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(bmp.width*scale); c.height = Math.round(bmp.height*scale);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    const blob = await new Promise(r => c.toBlob(r, "image/jpeg", .85));
+    return blob ? new File([blob], "photo.jpg", {type:"image/jpeg"}) : file;
+  }catch{ return file; }
+}
+
+function setStatus(el, text, kind){ el.textContent = text; el.className = "status " + (kind||""); }
+
+$("#postForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const st = $("#postStatus"), name = $("#gname").value.trim(), msg = $("#msg").value.trim();
+  const kind = currentKind(), vis = document.querySelector('input[name="vis"]:checked').value;
+  if (!name) return setStatus(st, "Add your name so the couple knows who it's from.", "err");
+  if (kind==="wish" && !msg) return setStatus(st, "Write your wish before posting.", "err");
+  if (kind!=="wish" && !chosenFile) return setStatus(st, `Choose a ${kind} before posting.`, "err");
+  if (kind==="video" && chosenFile.size > CONFIG.MAX_VIDEO_MB*1024*1024)
+    return setStatus(st, `This video is over ${CONFIG.MAX_VIDEO_MB} MB. Trim it or choose a shorter clip.`, "err");
+
+  const btn = $("#postBtn"); btn.disabled = true; setStatus(st, "Posting...");
+  try{
+    const file = kind==="photo" ? await compressImage(chosenFile) : chosenFile;
+    await createPost({ name, msg, kind, file, vis });
+    setStatus(st, vis==="public" ? "Posted to the wall." : "Posted. Only the bride and groom will see it.", "ok");
+    $("#msg").value = ""; applyKind();
+    if (vis==="public") setTimeout(() => show("wall"), 900);
+  }catch(err){
+    console.error(err);
+    setStatus(st, err.code==="FULL"
+      ? "The camera roll is full. You can still post a wish."
+      : "Upload failed. Check your connection and post again.", "err");
+  }finally{ btn.disabled = false; }
+});
+
+/* ---------- Data layer ---------- */
+async function createPost({name, msg, kind, file, vis}){
+  if (DEMO){
+    demoPosts.unshift({ id:crypto.randomUUID(), created_at:new Date().toISOString(), guest_name:name,
+      message:msg||null, media_type:kind, visibility:vis, media_url: file ? URL.createObjectURL(file) : null });
+    return;
+  }
+  let media_path = null;
+  if (file){
+    const [{data:used}, {data:cap}] = await Promise.all([sb.rpc("storage_used"), sb.rpc("storage_cap")]);
+    if (used != null && cap != null && used + file.size > cap){
+      const e = new Error("full"); e.code = "FULL"; throw e;
+    }
+    const ext = (file.name.split(".").pop() || (kind==="video"?"mp4":"jpg")).toLowerCase();
+    media_path = `${crypto.randomUUID()}.${ext}`;
+    const bucket = vis==="public" ? "public-media" : "private-media";
+    const { error } = await sb.storage.from(bucket).upload(media_path, file, { contentType:file.type });
+    if (error) throw error;
+  }
+  const { error } = await sb.from("posts").insert({ guest_name:name, message:msg||null, media_path, media_type:kind, visibility:vis });
+  if (error) throw error;
+}
+
+async function fetchPosts(){
+  if (DEMO) return demoPosts;
+  const { data, error } = await sb.from("posts").select("*").order("created_at", {ascending:false}).limit(300);
+  if (error) throw error;
+  const priv = data.filter(p => p.visibility==="private" && p.media_path).map(p => p.media_path);
+  let signed = {};
+  if (priv.length){
+    const { data:s } = await sb.storage.from("private-media").createSignedUrls(priv, 3600);
+    (s||[]).forEach(x => { if (x.signedUrl) signed[x.path] = x.signedUrl; });
+  }
+  return data.map(p => ({ ...p, media_url: !p.media_path ? null :
+    p.visibility==="public" ? sb.storage.from("public-media").getPublicUrl(p.media_path).data.publicUrl
+                            : signed[p.media_path] || null }));
+}
+
+async function deletePost(p){
+  if (!confirm(`Delete this post from ${p.guest_name}?`)) return;
+  if (DEMO){ demoPosts = demoPosts.filter(x => x.id!==p.id); return refreshCouple(); }
+  if (p.media_path) await sb.storage.from(p.visibility==="public"?"public-media":"private-media").remove([p.media_path]);
+  await sb.from("posts").delete().eq("id", p.id);
+  refreshCouple();
+}
+
+/* ---------- Rendering ---------- */
+function stamp(iso){
+  const d = new Date(iso), z = n => String(n).padStart(2,"0");
+  return `'${String(d.getFullYear()).slice(2)} ${z(d.getMonth()+1)} ${z(d.getDate())}`;
+}
+function card(p, coupleView){
+  const el = document.createElement("article"); el.className = "print";
+  if (p.media_type!=="wish" && p.media_url){
+    const shot = document.createElement("div"); shot.className = "shot";
+    const m = document.createElement(p.media_type==="video" ? "video" : "img");
+    m.src = p.media_url;
+    if (m.tagName==="VIDEO"){ m.controls = true; m.playsInline = true; m.preload = "metadata"; }
+    else { m.loading = "lazy"; m.alt = p.message || `Photo from ${p.guest_name}`; }
+    const s = document.createElement("span"); s.className = "stamp"; s.textContent = stamp(p.created_at);
+    shot.append(m, s); el.appendChild(shot);
+    if (p.message){ const c = document.createElement("p"); c.className = "cap"; c.textContent = p.message; el.appendChild(c); }
+  } else if (p.message){
+    const w = document.createElement("p"); w.className = "wish"; w.textContent = p.message; el.appendChild(w);
+  }
+  const meta = document.createElement("div"); meta.className = "meta";
+  const who = document.createElement("span"); who.append("From "); const b = document.createElement("strong"); b.textContent = p.guest_name; who.appendChild(b);
+  const when = document.createElement("span"); when.textContent = new Date(p.created_at).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
+  meta.append(who, when); el.appendChild(meta);
+  if (coupleView){
+    if (p.visibility==="private"){ const t = document.createElement("span"); t.className = "tag"; t.textContent = "Just for you"; el.appendChild(t); }
+    const d = document.createElement("button"); d.className = "del"; d.textContent = "Delete post";
+    d.addEventListener("click", () => deletePost(p)); el.appendChild(d);
+  }
+  return el;
+}
+function emptyState(target, text, withBtn){
+  target.innerHTML = ""; const e = document.createElement("div"); e.className = "empty"; e.textContent = text;
+  if (withBtn){ const b = document.createElement("button"); b.className = "btn"; b.textContent = "Add the first moment"; b.onclick = () => show("add"); e.append(document.createElement("br"), b); }
+  target.appendChild(e);
+}
+
+async function loadWall(){
+  const feed = $("#wallFeed");
+  try{
+    const posts = (await fetchPosts()).filter(p => p.visibility==="public");
+    $("#count").textContent = String(posts.length).padStart(2,"0");
+    if (!posts.length) return emptyState(feed, "No moments yet. Snap the first one.", true);
+    feed.innerHTML = ""; posts.forEach(p => feed.appendChild(card(p, false)));
+  }catch(err){ console.error(err); emptyState(feed, "The wall couldn't load. Check your connection and tap Refresh."); }
+}
+$("#refresh").addEventListener("click", loadWall);
+
+/* ---------- Couple login ---------- */
+async function isLoggedIn(){
+  if (DEMO) return demoLoggedIn;
+  const { data } = await sb.auth.getSession(); return !!data.session;
+}
+async function refreshCouple(){
+  const inn = await isLoggedIn();
+  $("#loginForm").hidden = inn; $("#coupleArea").hidden = !inn;
+  if (!inn) return;
+  updateGauge();
+  const feed = $("#coupleFeed");
+  const rsvpMode = coupleFilter==="rsvp";
+  feed.hidden = rsvpMode; $("#rsvpPanel").hidden = !rsvpMode;
+  if (rsvpMode) return loadRsvps();
+  try{
+    let posts = await fetchPosts();
+    if (coupleFilter==="private") posts = posts.filter(p => p.visibility==="private");
+    if (!posts.length) return emptyState(feed, coupleFilter==="private" ? "No private messages yet." : "No posts yet.");
+    feed.innerHTML = ""; posts.forEach(p => feed.appendChild(card(p, true)));
+  }catch(err){ console.error(err); emptyState(feed, "Posts couldn't load. Sign out and sign in again."); }
+}
+$("#loginForm").addEventListener("submit", async e => {
+  e.preventDefault(); const st = $("#loginStatus");
+  if (DEMO){ demoLoggedIn = true; return refreshCouple(); }
+  setStatus(st, "Signing in...");
+  const { error } = await sb.auth.signInWithPassword({ email:$("#email").value.trim(), password:$("#pw").value });
+  if (error) return setStatus(st, "Email or password is incorrect.", "err");
+  setStatus(st, ""); refreshCouple();
+});
+$("#logout").addEventListener("click", async () => { if (DEMO) demoLoggedIn = false; else await sb.auth.signOut(); refreshCouple(); });
+const chipIds = [["f-all","all"],["f-priv","private"],["f-rsvp","rsvp"]];
+chipIds.forEach(([id,val]) => $("#"+id).addEventListener("click", () => {
+  coupleFilter = val; chipIds.forEach(([i,v]) => $("#"+i).setAttribute("aria-pressed", v===val)); refreshCouple();
+}));
+
+/* ---------- Storage gauge ---------- */
+async function updateGauge(){
+  const g = $("#gauge");
+  if (DEMO){ $("#gaugeText").textContent = "Storage gauge shows once Supabase is connected."; return; }
+  const [{data:used}, {data:cap}] = await Promise.all([sb.rpc("storage_used"), sb.rpc("storage_cap")]);
+  if (used==null || !cap) return;
+  const pct = Math.min(100, used/cap*100), gb = b => (b/1073741824).toFixed(2);
+  $("#gaugeFill").style.width = pct + "%";
+  $("#gaugeText").textContent = `Storage used: ${gb(used)} / ${gb(cap)} GB (${pct.toFixed(0)}%)`;
+  g.className = "gauge" + (pct>=100 ? " full" : pct>=80 ? " warn" : "");
+}
+
+/* ---------- RSVP ---------- */
+let demoRsvps = [], lastRsvps = [];
+for (let i=1;i<=10;i++){ const o = document.createElement("option"); o.value = i; o.textContent = i; $("#r-pax").appendChild(o); }
+document.querySelectorAll('input[name="att"]').forEach(r => r.addEventListener("change", () => {
+  $("#paxBox").hidden = document.querySelector('input[name="att"]:checked').value==="no";
+}));
+$("#rsvpForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const st = $("#rsvpStatus"), name = $("#r-name").value.trim();
+  if (!name) return setStatus(st, "Add your name so the couple knows who's replying.", "err");
+  const attending = document.querySelector('input[name="att"]:checked').value==="yes";
+  const row = { guest_name:name, phone:$("#r-phone").value.trim()||null, attending,
+                pax: attending ? Number($("#r-pax").value) : 0, message:$("#r-msg").value.trim()||null };
+  const btn = $("#rsvpBtn"); btn.disabled = true; setStatus(st, "Sending...");
+  try{
+    if (DEMO) demoRsvps.unshift({ ...row, id:crypto.randomUUID(), created_at:new Date().toISOString() });
+    else { const { error } = await sb.from("rsvps").insert(row); if (error) throw error; }
+    setStatus(st, attending ? `Thanks, ${name}. See you there!` : `Thanks for letting us know, ${name}.`, "ok");
+    $("#rsvpForm").reset(); $("#paxBox").hidden = false;
+  }catch(err){ console.error(err); setStatus(st, "RSVP didn't send. Check your connection and try again.", "err"); }
+  finally{ btn.disabled = false; }
+});
+
+async function loadRsvps(){
+  let rows = DEMO ? demoRsvps : [];
+  if (!DEMO){
+    const { data, error } = await sb.from("rsvps").select("*").order("created_at", {ascending:false});
+    if (error){ console.error(error); return; }
+    rows = data;
+  }
+  lastRsvps = rows;
+  const yes = rows.filter(r => r.attending);
+  $("#s-yes").textContent = yes.length;
+  $("#s-pax").textContent = yes.reduce((a,r) => a + (r.pax||0), 0);
+  $("#s-no").textContent = rows.length - yes.length;
+  const tb = $("#rsvpRows"); tb.innerHTML = "";
+  if (!rows.length){ const tr = document.createElement("tr"); const td = document.createElement("td"); td.colSpan = 5; td.textContent = "No RSVPs yet."; tr.appendChild(td); tb.appendChild(tr); return; }
+  rows.forEach(r => {
+    const tr = document.createElement("tr");
+    [r.guest_name, r.attending ? "Coming" : "Can't come", r.attending ? r.pax : "-", r.phone||"-", r.message||""].forEach((v,i) => {
+      const td = document.createElement("td"); td.textContent = v;
+      if (i===1) td.className = r.attending ? "yes" : "no";
+      tr.appendChild(td);
+    });
+    tb.appendChild(tr);
+  });
+}
+$("#csvBtn").addEventListener("click", () => {
+  const esc = v => `"${String(v ?? "").replace(/"/g,'""')}"`;
+  const lines = [["Name","Attending","Pax","Phone","Message","Submitted"].map(esc).join(",")]
+    .concat(lastRsvps.map(r => [r.guest_name, r.attending?"Yes":"No", r.pax, r.phone, r.message, new Date(r.created_at).toLocaleString()].map(esc).join(",")));
+  const blob = new Blob(["\ufeff" + lines.join("\n")], {type:"text/csv"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "rsvp-list.csv"; a.click();
+});
+
+/* ---------- Start ---------- */
+applyKind(); loadWall();
+setInterval(() => { if (!$("#wall").hidden) loadWall(); }, 30000);
+</script>
+</body>
+</html>
