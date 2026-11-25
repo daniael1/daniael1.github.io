@@ -2,16 +2,28 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Two-page UI prototype</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#fdfdfd;color:#090909;font-family:Poppins,"Century Gothic",Arial,sans-serif}[hidden]{display:none!important}button,input{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible{outline:3px solid #205fbd;outline-offset:3px}.editor{max-width:620px;margin:28px auto;padding:24px}.editor h1{margin:0 0 8px;font-size:26px}.editor p{margin:0 0 20px;color:#50535a}.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px 16px}.fields label{display:grid;gap:4px;font-size:14px;font-weight:600}.fields input{width:100%;padding:9px;border:1px solid #888c95;border-radius:8px;background:white;color:#090909}.show{margin-top:22px;border:0;border-radius:30px;padding:12px 24px;background:#18783a;color:white;font-weight:700}.sheet{width:min(100%,945px);aspect-ratio:945/2048;margin:auto;position:relative;container-type:inline-size}.panel{position:absolute;left:13.39%;top:11.23%;width:69.42%;height:59.96%;background:#ececf1}.mark{position:absolute;left:8.69%;top:14.41%;width:13.42%;height:6.84%;background:#ffc600;border:1px solid #edc600;border-radius:50%;display:grid;place-items:center}.mark svg{width:60%;height:60%}.pos{position:absolute;margin:0;line-height:1.12;overflow-wrap:anywhere;max-width:83%}.t1{left:8.06%;top:25.45%;font-size:4.02cqw;font-weight:400}.divider{position:absolute;left:6.9%;top:41.29%;width:23%;height:1px;background:#ececf1}.t2{left:8.38%;top:42.07%;font:700 4.65cqw/1.12 Arial,sans-serif}.t9{left:9%;top:49.08%;font-size:3.2cqw;letter-spacing:0.05em}.label{left:8.35%;font-size:2.28cqw;color:#858585;max-width:42%}.value{right:7.35%;text-align:right;font-size:2.17cqw;font-weight:700;max-width:56%}.r1{top:57.66%}.r2{top:62.6%}.r3{top:67.5%}.value.r1,.value.r3{transform:translateY(-.55cqw)}.t3,.done{position:absolute;left:6.1%;width:87.8%;height:6.2%;border-radius:999px;display:grid;place-items:center;padding:0 4%;text-align:center;overflow-wrap:anywhere}.t3{top:77.93%;border:1.5px solid #ccc;background:#fdfdfd;font-size:2.8cqw;font-weight:700}.done{top:85.4%;border:0;background:#ffc600;color:#0b0b0b;font-size:2.51cqw;font-weight:600}.disclaimer{position:absolute;top:94%;left:0;width:100%;padding:0 12px;margin:0;text-align:center;color:#484850;font-size:clamp(10px,1.5cqw,15px);font-weight:700;letter-spacing:.055em}
-/* Phone: paint extra grey behind the original layout without resizing it. */
-@media (max-width:600px){
-  .sheet{isolation:isolate}
-  .sheet::before{content:"";position:absolute;inset:0 0 auto;height:100%;min-height:100vh;min-height:100dvh;background:#ececf1;z-index:-1;pointer-events:none}
+/* Phone preview: use the full available width without scaling the page. */
+html, body { background-color:#ececf1; }
+@media (max-width:600px) {
+  .sheet { width:100%; aspect-ratio:auto; min-height:650px; height:100vh; height:100dvh; }
+  .panel { inset:0; width:100%; height:100%; }
+  .mark { left:10%; top:18%; width:13.3%; height:auto; aspect-ratio:1; }
+  .t1 { left:9.4%; top:29%; font-size:clamp(18px,5.7cqw,34px); }
+  .divider { display:none; }
+  .t2 { left:9.6%; top:44%; font-size:clamp(21px,6.65cqw,40px); }
+  .t9 { left:10.2%; top:50%; font-size:clamp(15px,4.65cqw,28px); }
+  .label { left:9.6%; max-width:42%; font-size:clamp(11px,3.3cqw,20px); }
+  .value { right:6.7%; max-width:48%; font-size:clamp(11px,3.1cqw,19px); }
+  .r1 { top:58%; } .r2 { top:62.5%; } .r3 { top:67%; }
+  .value.r1,.value.r3 { transform:none; }
+  .t3,.done { left:7.4%; width:87%; height:5.8%; min-height:44px; }
+  .t3 { top:76%; font-size:clamp(14px,4cqw,24px); }
+  .done { top:83%; font-size:clamp(14px,3.6cqw,22px); }
+  .disclaimer { top:92%; font-size:clamp(10px,2.8cqw,15px); }
+  .fields input { font-size:16px; }
 }
-
-/* Match the page canvas to the panel; keep all element geometry unchanged. */
-html, body { background-color: #ececf1; }
 </style></head><body><main>
-<section class="editor" id="editor" aria-labelledby="heading"><h1 id="heading">Edit preview text</h1><p>Change Text 1 through Text 9, then preview the layout. The preview uses your device’s current date and time. This prototype does not process payments.</p><form id="form"><div class="fields" id="fields"></div><button class="show" type="submit">Preview</button></form></section>
+<section class="editor" id="editor" aria-labelledby="heading"><h1 id="heading">Edit preview text</h1><p>Edit the amount if needed, enter a name, then tap Preview. The preview uses your device’s current date and time. This prototype does not process payments.</p><form id="form"><div class="fields" id="fields"></div><button class="show" type="submit">Preview</button></form></section>
 <section class="sheet" id="preview" hidden aria-label="Prototype preview"><div class="panel">
 <div class="mark" aria-hidden="true"><svg viewBox="0 0 60 50"><path d="M5 25l15 14L55 10" fill="none" stroke="#f5c300" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 25l15 14L55 10" fill="none" stroke="#111" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
 <h2 class="pos t1" data-out="1"></h2><div class="divider" aria-hidden="true"></div><p class="pos t2" data-out="2"></p><p class="pos t9" data-out="9"></p>
@@ -22,14 +34,22 @@ html, body { background-color: #ececf1; }
 </div></section></main><script>
 (() => {
   const $ = id => document.getElementById(id);
-  const defaults = ['Payment successful','RM 100.00','Share Receipt','9476554582Q','Scan & Pay','Transaction Type','Date & time','Reference ID','Name'];
+  const defaults = ['Payment successful','RM100.00','Share Receipt','9476554582Q','Scan & Pay','Transaction Type','Date & time','Reference ID',''];
+  const requiredFields = {1: {label: 'Text 2 (Amount)', placeholder: 'e.g. RM 100.00'}, 8: {label: 'Text 9 (Name)', placeholder: 'Enter a name'}};
   const inputs = defaults.map((value, i) => {
+    if (i !== 1 && i !== 8) return null;
     const label = document.createElement('label');
-    label.textContent = 'Text ' + (i + 1);
+    const field = requiredFields[i];
+    label.textContent = field ? field.label : 'Text ' + (i + 1);
     const input = document.createElement('input');
     input.type = 'text';
     input.maxLength = i === 1 ? 24 : 32;
     input.value = value;
+    if (field) {
+      input.placeholder = field.placeholder;
+      input.required = true;
+      input.addEventListener('input', () => input.setCustomValidity(''));
+    }
     label.append(input);
     $('fields').append(label);
     return input;
@@ -38,7 +58,14 @@ html, body { background-color: #ececf1; }
   const timeFormat = new Intl.DateTimeFormat('en-US', {hour:'numeric', minute:'2-digit', hour12:true});
   $('form').addEventListener('submit', e => {
     e.preventDefault();
-    document.querySelectorAll('[data-out]').forEach(el => { el.textContent = inputs[Number(el.dataset.out) - 1].value; });
+    for (const i of [1, 8]) {
+      if (!inputs[i].value.trim()) {
+        inputs[i].setCustomValidity(i === 1 ? 'Enter an amount.' : 'Enter a name.');
+        inputs[i].reportValidity();
+        return;
+      }
+    }
+    document.querySelectorAll('[data-out]').forEach(el => { const i = Number(el.dataset.out) - 1; el.textContent = inputs[i] ? inputs[i].value.trim() : defaults[i]; });
     const now = new Date();
     $('stamp').textContent = dateFormat.format(now) + ', ' + timeFormat.format(now);
     $('editor').hidden = true;
@@ -49,7 +76,7 @@ html, body { background-color: #ececf1; }
   $('done').addEventListener('click', () => {
     $('preview').hidden = true;
     $('editor').hidden = false;
-    inputs[0].focus({preventScroll:true});
+    inputs[1].focus({preventScroll:true});
     window.scrollTo(0,0);
   });
 })();
