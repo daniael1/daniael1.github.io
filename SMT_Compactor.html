@@ -555,6 +555,11 @@ body.connect-mode #view { padding-bottom: 24px; }
   var Bridge = window.AndroidBridge || null;
   var HOSTED = !!(window.google && window.google.script && window.google.script.run);
 
+  /* ===== SET THIS ONCE: your Apps Script Web App URL (ends with /exec). =====
+     With it set, the app opens on a login page (staff no. or username from the Users tab). */
+  var WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz0DHV7NjmiVF8xNnBMiCeEC9xDz4hcwekpVsCt3NO9I5Ntw3Pww7Hjr7vvN0qEshnhGw/exec';
+  var LOGIN_MODE = HOSTED || /^https:\/\/script\.google\.com\/(a\/macros\/[^/]+\/|macros\/)s\/[\w-]+\/exec$/.test(WEB_APP_URL);
+
   /* ================= icons ================= */
   var I = {
     search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>',
@@ -636,7 +641,7 @@ body.connect-mode #view { padding-bottom: 24px; }
   var S = {
     parts: [], layout: {}, log: [],
     settings: { name: '', levelOrder: 'top' },
-    conn: { url: '', key: '' },
+    conn: { url: '', key: '', user: '' },
     sync: { at: null, ok: false, busy: 0, error: '', sheetUrl: '', sheetName: '', invalid: 0 }
   };
   function lsGet(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
@@ -645,7 +650,7 @@ body.connect-mode #view { padding-bottom: 24px; }
   function saveCache() {
     lsSet(CACHE_KEY, { parts: S.parts, layout: S.layout, log: S.log.slice(0, 300), at: S.sync.at, sheetUrl: S.sync.sheetUrl, sheetName: S.sync.sheetName });
   }
-  function connected() { return !!(S.conn.key && (HOSTED || S.conn.url)); }
+  function connected() { return !!((S.conn.key || S.conn.user) && (HOSTED || S.conn.url)); }
   function byId(id) { for (var i = 0; i < S.parts.length; i++) if (S.parts[i].id === id) return S.parts[i]; return null; }
   function ensureLayout(p) {
     var r = S.layout[p.rack] = S.layout[p.rack] || {};
@@ -677,7 +682,7 @@ body.connect-mode #view { padding-bottom: 24px; }
 
   /** One request to the Apps Script backend. Resolves with the reply, rejects with {error, conflict?, auth?, network?}. */
   function call(action, payload) {
-    var req = Object.assign({ action: action, key: S.conn.key, by: S.settings.name || '' }, payload || {});
+    var req = Object.assign({ action: action, key: S.conn.key, user: S.conn.user, by: S.settings.name || '' }, payload || {});
     S.sync.busy++;
     busyBar();
     return new Promise(function (resolve, reject) {
@@ -731,6 +736,7 @@ body.connect-mode #view { padding-bottom: 24px; }
     S.sync.sheetUrl = res.sheetUrl || S.sync.sheetUrl;
     S.sync.sheetName = res.sheetName || S.sync.sheetName;
     S.sync.invalid = res.invalid || 0;
+    if (res.me && S.conn.user && res.me !== S.settings.name) { S.settings.name = res.me; saveCfg(); }
     saveCache();
   }
   var syncing = null;
@@ -750,6 +756,7 @@ body.connect-mode #view { padding-bottom: 24px; }
       S.sync.ok = false;
       S.sync.error = err.error || 'Could not load from Google Sheets';
       if (err.auth) {
+        if (S.conn.user) { logoutNow(); toast(err.error); return false; }
         S.conn.key = '';
         saveCfg();
         tab('connect');
@@ -1463,9 +1470,12 @@ body.connect-mode #view { padding-bottom: 24px; }
         (S.sync.invalid ? '<p class="warn" style="margin:0 0 10px">' + plural(S.sync.invalid, 'row') + ' in the Parts tab have no rack, level or description, so the app hides them. Fix them in the sheet.</p>' : '') +
         '<div class="row-btns stack" style="margin-top:0"><button class="btn primary" data-act="sync">' + I.sync + 'Sync now</button>' +
         (S.sync.sheetUrl ? '<a class="btn ghost" href="' + esc(S.sync.sheetUrl) + '" target="_blank" rel="noopener">' + I.excel + 'Open the Google Sheet</a>' : '') +
-        '<button class="btn ghost" data-act="tab" data-tab="connect">' + I.link + 'Change connection</button></div></div>' +
-        '<h2 class="section-title">Your name</h2><div class="panel-box"><p>Saved with every change you make, so the team can see who updated what.</p>' +
-        '<label class="field"><input id="uname" value="' + esc(S.settings.name) + '" placeholder="Name or staff number" autocomplete="name"></label></div>' +
+        (LOGIN_MODE ? '' : '<button class="btn ghost" data-act="tab" data-tab="connect">' + I.link + 'Change connection</button>') + '</div></div>' +
+        (LOGIN_MODE
+          ? '<h2 class="section-title">Logged in</h2><div class="panel-box"><p>Logged in as <b>' + esc(S.settings.name || S.conn.user) + '</b> (' + esc(S.conn.user || 'admin key') + '). Your changes are signed with this name.</p>' +
+            '<button class="btn ghost danger" data-act="disconnect">Log out</button></div>'
+          : '<h2 class="section-title">Your name</h2><div class="panel-box"><p>Saved with every change you make, so the team can see who updated what.</p>' +
+            '<label class="field"><input id="uname" value="' + esc(S.settings.name) + '" placeholder="Name or staff number" autocomplete="name"></label></div>') +
         '<h2 class="section-title">Excel report</h2><div class="panel-box"><p>The Excel file has the full parts list, a restock list, a summary by rack and the change history.</p>' +
         '<div class="row-btns stack" style="margin-top:0"><button class="btn ghost" data-act="export">' + I.excel + 'Export to Excel</button>' +
         '<button class="btn ghost" data-act="share-restock">' + I.share + 'Send restock list as text</button>' +
@@ -1479,7 +1489,7 @@ body.connect-mode #view { padding-bottom: 24px; }
     },
     mount: function () {
       var u = $('#uname');
-      u.addEventListener('input', function () { S.settings.name = u.value.trim(); saveCfg(); });
+      if (u) u.addEventListener('input', function () { S.settings.name = u.value.trim(); saveCfg(); });
       $('#importfile').addEventListener('change', function (e) { var f = e.target.files[0]; e.target.value = ''; if (f) importFile(f); });
     }
   };
@@ -1487,6 +1497,15 @@ body.connect-mode #view { padding-bottom: 24px; }
   /* ---- Connect ---- */
   VIEWS.connect = {
     html: function (pr) {
+      if (LOGIN_MODE) {
+        return '<header class="topbar"><div class="topbar-row"><h1>SMT Compactor</h1></div></header>' +
+          '<form class="wrap form" id="connform" novalidate>' +
+          '<div class="hero-tape">' + tape('SMT COMPACTOR', 'big') + '<p>Log in to find, update and add spare parts in the compactor.</p></div>' +
+          '<label class="field"><span class="lbl">Staff no. or username</span><input id="c-user" autocomplete="username" autocapitalize="none" spellcheck="false" enterkeyhint="go" value="' + esc(S.conn.user) + '"></label>' +
+          '<div id="c-err" role="alert"></div>' +
+          '<button type="submit" class="btn primary block" id="c-go">Log in</button>' +
+          '<p class="hint">You stay logged in on this device until you log out in Records. If you cannot log in, ask the sheet owner to add you to the team list.</p></form>';
+      }
       return '<header class="topbar"><div class="topbar-row">' + (connected() ? '<button class="icon-btn" data-act="tab" data-tab="records" aria-label="Back">' + I.back + '</button>' : '') +
         '<h1>Connect to Google Sheets</h1></div></header>' +
         '<form class="wrap form" id="connform" novalidate>' +
@@ -1503,7 +1522,38 @@ body.connect-mode #view { padding-bottom: 24px; }
       $('#connform').addEventListener('submit', function (ev) { ev.preventDefault(); connectNow(); });
     }
   };
+  function loginNow() {
+    var login = ($('#c-user').value || '').trim();
+    var err = $('#c-err');
+    var show = function (m) { err.innerHTML = '<div class="err-msg" style="margin:0">' + esc(m) + '</div>'; };
+    if (!login) { show('Enter your staff no. or username.'); return; }
+    var old = { url: S.conn.url, key: S.conn.key, user: S.conn.user };
+    S.conn = { url: HOSTED ? '' : WEB_APP_URL, key: '', user: login };
+    var btn = $('#c-go');
+    btn.disabled = true; btn.textContent = 'Logging in…';
+    call('load').then(function (res) {
+      if (old.user && old.user.toLowerCase() !== login.toLowerCase()) S.log = [];
+      S.settings.name = res.me || login;
+      applyLoad(res);
+      saveCfg();
+      tab('racks');
+      toast('Welcome, ' + S.settings.name);
+    }, function (e) {
+      S.conn = old;
+      btn.disabled = false; btn.textContent = 'Log in';
+      show(e.error || 'Could not log in.');
+    });
+  }
+  function logoutNow() {
+    S.conn = { url: HOSTED || !LOGIN_MODE ? '' : WEB_APP_URL, key: '', user: '' };
+    S.settings.name = '';
+    S.parts = []; S.layout = {}; S.log = []; S.sync.at = null; S.sync.ok = false; S.sync.error = '';
+    saveCfg();
+    try { localStorage.removeItem(CACHE_KEY); } catch (e) { /* ignore */ }
+    tab('connect');
+  }
   function connectNow() {
+    if (LOGIN_MODE) { loginNow(); return; }
     var url = HOSTED ? '' : ($('#c-url').value || '').trim();
     var key = ($('#c-key').value || '').trim().toUpperCase();
     var name = ($('#c-name').value || '').trim();
@@ -1774,12 +1824,9 @@ body.connect-mode #view { padding-bottom: 24px; }
     'level-order': function (d) { S.settings.levelOrder = d.v; saveCfg(); render({ keepScroll: true }); },
     'sync': function () { sync(false); },
     'disconnect': function () {
-      dialog('Disconnect this phone?', '<p>The saved link, key and offline copy are removed from this device. The Google Sheet is not changed.</p>', [
-        { label: 'Disconnect', cls: 'primary', fn: function () {
-          S.conn = { url: '', key: '' }; S.parts = []; S.layout = {}; S.log = []; S.sync.at = null; S.sync.ok = false;
-          saveCfg(); try { localStorage.removeItem(CACHE_KEY); } catch (e) { /* ignore */ }
-          tab('connect');
-        } }, { label: 'Cancel' }]);
+      dialog(LOGIN_MODE ? 'Log out of this device?' : 'Disconnect this phone?',
+        '<p>' + (LOGIN_MODE ? 'The offline copy of the list is removed from this device. The next person logs in with their own staff no.' : 'The saved link, key and offline copy are removed from this device.') + ' The Google Sheet is not changed.</p>', [
+        { label: LOGIN_MODE ? 'Log out' : 'Disconnect', cls: 'primary', fn: logoutNow }, { label: 'Cancel' }]);
     },
     'dlg': function (d) { if (dialogResolve) dialogResolve(Number(d.i)); },
     'toast-action': function (d, el) { var t = el.closest('.toast'); var fn = t && t._fn; if (t) t.remove(); if (fn) fn(); }
@@ -1801,7 +1848,11 @@ body.connect-mode #view { padding-bottom: 24px; }
   function boot() {
     var cfg = lsGet(CFG_KEY) || {};
     S.settings = Object.assign({ name: '', levelOrder: 'top' }, cfg.settings || {});
-    S.conn = Object.assign({ url: '', key: '' }, cfg.conn || {});
+    S.conn = Object.assign({ url: '', key: '', user: '' }, cfg.conn || {});
+    if (LOGIN_MODE) {
+      S.conn.url = HOSTED ? '' : WEB_APP_URL;
+      if (!S.conn.user) S.conn.key = '';          // login mode: people log in by name, not with the key
+    }
     var cache = lsGet(CACHE_KEY);
     if (cache && cache.parts) {
       S.parts = cache.parts;
