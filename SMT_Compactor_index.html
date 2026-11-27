@@ -1,0 +1,1841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#24465C">
+<title>SMT Compactor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --floor: #EEF1F2;
+  --steel: #DCE2E5;
+  --steel-2: #C9D2D7;
+  --edge: #8E9CA5;
+  --panel: #24465C;
+  --panel-2: #2F5A75;
+  --tape: #F5CF3A;
+  --tape-ink: #2A2300;
+  --ink: #22303A;
+  --muted: #5B6871;
+  --line: #CDD5DA;
+  --white: #FFFFFF;
+  --ok: #2E8B57;
+  --low: #B97A00;
+  --out: #C8372D;
+  --order: #3767C2;
+  --nc: #8A969E;
+  --focus: #E0A800;
+  --tabbar: 62px;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+  --cond: 'Barlow Condensed', 'Roboto Condensed', 'Arial Narrow', sans-serif;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; }
+body {
+  font-family: 'Barlow', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px; line-height: 1.4; color: var(--ink); background: var(--floor);
+  -webkit-font-smoothing: antialiased; overscroll-behavior-y: contain;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; border: 0; background: none; padding: 0; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.muted { color: var(--muted); }
+mark { background: #FBE7A1; color: inherit; border-radius: 2px; padding: 0 1px; }
+
+/* ---------- shell ---------- */
+#view { min-height: 100%; padding-bottom: calc(var(--tabbar) + var(--safe-b) + 16px); }
+.topbar {
+  position: sticky; top: 0; z-index: 20; background: var(--panel); color: var(--white);
+  padding: calc(10px + var(--safe-t)) 16px 12px;
+}
+.topbar-row { display: flex; align-items: center; gap: 10px; min-height: 40px; }
+.topbar h1 { font-size: 21px; font-weight: 600; margin: 0; letter-spacing: .005em; flex: 1; min-width: 0; }
+.topbar .sub { font-size: 14px; color: #BFD0DB; margin: 0; }
+.icon-btn {
+  width: 44px; height: 44px; display: inline-grid; place-items: center; border-radius: 8px; flex: none;
+}
+.topbar .icon-btn { color: var(--white); }
+.topbar .icon-btn:active { background: rgba(255,255,255,.12); }
+.icon-btn svg { width: 24px; height: 24px; }
+.searchbox {
+  display: flex; align-items: center; gap: 8px; margin-top: 10px; background: var(--white); color: var(--ink);
+  border-radius: 8px; padding: 0 12px; min-height: 48px; width: 100%; text-align: left;
+}
+.searchbox svg { width: 20px; height: 20px; color: var(--muted); flex: none; }
+input[type=search]::-webkit-search-cancel-button, input[type=search]::-webkit-search-decoration { -webkit-appearance: none; display: none; }
+.searchbox input { border: 0; outline: 0; flex: 1; min-width: 0; font-size: 17px; background: transparent; height: 46px; }
+.searchbox .ph { color: var(--muted); font-size: 16px; }
+.searchbox .clear { width: 36px; height: 36px; display: grid; place-items: center; color: var(--muted); }
+
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; background: var(--panel);
+  display: grid; grid-template-columns: repeat(4, 1fr); padding-bottom: var(--safe-b); height: calc(var(--tabbar) + var(--safe-b));
+}
+.tabbar button {
+  color: #AFC3D0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  font-size: 13px; font-weight: 500; position: relative;
+}
+.tabbar button svg { width: 24px; height: 24px; }
+.tabbar button[aria-current="page"] { color: var(--white); }
+.tabbar button[aria-current="page"]::before {
+  content: ''; position: absolute; top: 0; left: 28%; right: 28%; height: 4px; background: var(--tape); border-radius: 0 0 3px 3px;
+}
+
+.wrap { padding: 16px; max-width: 1100px; margin: 0 auto; }
+.section-title { font-size: 15px; font-weight: 600; color: var(--muted); margin: 14px 0 10px; }
+.section-title:first-child { margin-top: 4px; }
+
+/* ---------- label-maker tape ---------- */
+.tape {
+  display: inline-block; background: var(--tape); color: var(--tape-ink);
+  font-family: var(--cond); font-weight: 700; font-size: 14px; line-height: 1.25; letter-spacing: .02em;
+  padding: 1px 8px; white-space: nowrap;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 3px) 50%, 100% 100%, 0 100%, 3px 50%);
+}
+.tape.big { font-size: 20px; padding: 2px 12px; }
+.tape.small { font-size: 12.5px; padding: 0 6px; }
+
+/* ---------- status ---------- */
+.st { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 500; white-space: nowrap; }
+.st::before { content: ''; width: 9px; height: 9px; border-radius: 50%; background: currentColor; flex: none; }
+.st-ok { color: var(--ok); } .st-low { color: var(--low); } .st-out { color: var(--out); }
+.st-order { color: var(--order); } .st-nc { color: var(--nc); }
+
+/* ---------- home: alert strip + rack end panels ---------- */
+.alerts { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.alert-chip {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; border-radius: 20px;
+  background: var(--white); border: 1px solid var(--line); font-size: 15px; font-weight: 500;
+}
+.alert-chip b { font-weight: 700; }
+.racks { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px 10px; }
+@media (min-width: 640px) { .racks { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+@media (min-width: 1000px) { .racks { grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 18px 6px; } }
+.endpanel {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  background: var(--steel); border: 1px solid var(--edge); border-radius: 5px 5px 2px 2px;
+  padding: 6px 6px 8px; min-height: 140px; text-align: center;
+  box-shadow: inset 0 0 0 3px #E8ECEE, inset 4px 0 0 3px #CFD7DB;
+}
+.endpanel::after { /* floor rail feet */
+  content: ''; position: absolute; left: 8px; right: 8px; bottom: -7px; height: 6px;
+  background: linear-gradient(90deg, #56646D 0 22%, transparent 22% 78%, #56646D 78%); border-radius: 0 0 2px 2px;
+}
+.endpanel:active { transform: translateY(1px); }
+.plate {
+  background: var(--panel); color: var(--white); font-family: var(--cond); font-weight: 700; font-size: 28px; line-height: 1;
+  min-width: 46px; padding: 6px 6px 5px; border-radius: 3px;
+}
+.wheel { width: 30px; height: 30px; color: #56646D; }
+.shelves { width: 100%; display: flex; flex-direction: column; gap: 2px; margin-top: auto; }
+.shelf {
+  height: 9px; border-bottom: 2px solid var(--edge); display: flex; justify-content: space-between; align-items: flex-end;
+  font-family: var(--cond); font-size: 9.5px; line-height: 1; color: var(--muted); padding: 0 2px;
+}
+.shelf i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-bottom: 1px; }
+.shelf i.out { background: var(--out); } .shelf i.low { background: var(--low); }
+.endpanel .count { font-size: 13px; color: var(--muted); font-weight: 500; }
+.endpanel .flag { position: absolute; top: 6px; right: 6px; width: 10px; height: 10px; border-radius: 50%; }
+.flag.out { background: var(--out); } .flag.low { background: var(--low); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 22px; font-size: 14px; color: var(--muted); }
+
+/* ---------- rack view: cabinet with shelves and bins ---------- */
+.rack-nav { display: flex; gap: 4px; }
+.cabinet { background: var(--panel); border-radius: 6px; padding: 7px; }
+.level { display: flex; gap: 6px; align-items: stretch; background: var(--steel); padding: 8px 6px 9px; border-bottom: 6px solid var(--edge); }
+.level + .level { margin-top: 7px; }
+.level-tag {
+  flex: none; width: 28px; display: flex; align-items: center; justify-content: center;
+  background: var(--tape); color: var(--tape-ink); font-family: var(--cond); font-weight: 700; font-size: 20px;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 4px), 0 100%);
+}
+.bins { flex: 1; min-width: 0; display: flex; gap: 6px; }
+.bin {
+  flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 4px; text-align: left;
+  background: #F8FAFB; border: 1px solid #AEB9C0; border-top: 3px solid #AEB9C0; border-radius: 2px 2px 4px 4px;
+  padding: 6px 6px 6px; min-height: 104px; position: relative;
+}
+.bin:active { background: #FFF8DA; }
+.bin.empty { background: transparent; border-style: dashed; color: var(--muted); justify-content: center; align-items: center; text-align: center; font-size: 13px; }
+.bin .model {
+  font-family: var(--cond); font-weight: 600; font-size: 14px; line-height: 1.15; color: var(--ink);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere;
+}
+/* narrow phones: give 4-box shelves more room */
+@media (max-width: 430px) {
+  .rack-wrap { padding-left: 8px; padding-right: 8px; }
+  .cabinet { padding: 5px; }
+  .level { padding: 7px 4px 8px; gap: 4px; }
+  .level-tag { width: 22px; font-size: 17px; }
+  .bins { gap: 4px; }
+  .bins.n4 .bin { padding: 5px 4px; }
+  .bins.n4 .bin .model { font-size: 12.5px; letter-spacing: -.01em; }
+  .bins.n4 .tape.small { font-size: 11.5px; padding: 0 5px; }
+  .bins.n4 .bin .n { font-size: 12px; }
+}
+.bin .n { margin-top: auto; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.bin .n i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.bin .n i.out { background: var(--out); } .bin .n i.low { background: var(--low); } .bin .n i.order { background: var(--order); }
+.comps { display: flex; gap: 2px; }
+.comps span { flex: 1; min-width: 0; text-align: center; font-family: var(--cond); font-size: 11px; color: var(--muted); border-top: 2px solid var(--steel-2); }
+.bin.pulse { animation: pulse 1s ease-in-out 2; border-color: #C9A200; }
+@keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(245,207,58,0); } 40% { box-shadow: 0 0 0 6px rgba(245,207,58,.95); background: #FFF6CC; } }
+.view-enter { animation: roll .32s cubic-bezier(.2,.7,.2,1); }
+@keyframes roll { from { transform: translateX(28%); opacity: .2; } to { transform: none; opacity: 1; } }
+.rack-foot { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+
+/* ---------- lists ---------- */
+.list { background: var(--white); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.wrap > .list { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.item {
+  display: grid; grid-template-columns: 4px 1fr auto; gap: 0 12px; width: 100%; text-align: left;
+  padding: 12px 14px 12px 0; border-bottom: 1px solid var(--line); align-items: start; position: relative;
+}
+.item:last-child { border-bottom: 0; }
+.item:active { background: #F3F6F7; }
+.item .bar { align-self: stretch; border-radius: 0 2px 2px 0; }
+.bar.ok { background: var(--ok); } .bar.low { background: var(--low); } .bar.out { background: var(--out); }
+.bar.order { background: var(--order); } .bar.nc { background: #C5CDD2; }
+.item .desc { font-weight: 600; font-size: 16px; line-height: 1.3; overflow-wrap: anywhere; }
+.item .sub { font-size: 14px; color: var(--muted); margin-top: 3px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.item .pn { font-weight: 600; color: var(--ink); letter-spacing: .01em; }
+.item .right { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.qty { font-family: var(--cond); font-weight: 700; font-size: 20px; line-height: 1; }
+.qty small { font-family: 'Barlow', sans-serif; font-weight: 500; font-size: 12px; color: var(--muted); margin-left: 2px; }
+.qty.none { color: var(--nc); font-size: 16px; }
+.item.hl { background: #FFF6CC; }
+.locate-btn {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 36px; padding: 0 10px; border-radius: 18px;
+  background: var(--tape); color: var(--tape-ink); font-weight: 600; font-size: 14px;
+}
+.locate-btn svg { width: 16px; height: 16px; }
+.group-h { padding: 10px 14px 6px; font-family: var(--cond); font-weight: 600; font-size: 15px; color: var(--muted); background: #F4F6F7; border-bottom: 1px solid var(--line); }
+
+/* ---------- search ---------- */
+.chips { display: flex; gap: 8px; overflow-x: auto; padding: 12px 16px 4px; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.chip {
+  flex: none; min-height: 38px; padding: 0 14px; border-radius: 19px; border: 1px solid var(--line); background: var(--white);
+  font-size: 15px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px;
+}
+.chip[aria-pressed="true"] { background: var(--panel); border-color: var(--panel); color: var(--white); }
+.chip select { border: 0; background: transparent; font-weight: 500; outline: 0; }
+.result-meta { padding: 8px 16px; font-size: 14px; color: var(--muted); }
+.shortcut {
+  display: flex; align-items: center; gap: 12px; width: calc(100% - 32px); margin: 8px 16px; padding: 12px 14px; text-align: left;
+  background: var(--white); border: 1px solid var(--line); border-radius: 6px; font-weight: 500;
+}
+.empty-state { padding: 28px 20px; text-align: center; color: var(--muted); max-width: 420px; margin: 0 auto; }
+.empty-state p { margin: 0 0 14px; }
+
+/* ---------- buttons & forms ---------- */
+.btn {
+  min-height: 48px; padding: 0 18px; border-radius: 6px; font-weight: 600; font-size: 16px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid transparent;
+}
+.btn svg { width: 20px; height: 20px; }
+.btn.primary { background: var(--panel); color: var(--white); }
+.btn.primary:disabled { background: #9FB0BB; }
+.btn.yellow { background: var(--tape); color: var(--tape-ink); }
+.btn.ghost { background: var(--white); border-color: var(--line); }
+.btn.danger { color: var(--out); }
+.btn.block { width: 100%; }
+.row-btns { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+.row-btns .btn { flex: 1 1 140px; }
+.row-btns.stack { flex-direction: column; }
+.row-btns.stack .btn { flex: none; width: 100%; justify-content: flex-start; }
+.form { display: flex; flex-direction: column; gap: 18px; }
+.field > .lbl, .lbl { display: block; font-weight: 600; font-size: 15px; margin-bottom: 6px; }
+.lbl .opt { font-weight: 400; color: var(--muted); }
+.input, .field input, .field select, .field textarea {
+  width: 100%; min-height: 48px; border: 1px solid #AAB6BD; border-radius: 6px; background: var(--white);
+  padding: 10px 12px; font-size: 16px;
+}
+.field textarea { min-height: 72px; resize: vertical; }
+.field input:focus, .field select:focus, .field textarea:focus, .input:focus { outline: 2px solid var(--panel-2); outline-offset: 0; border-color: var(--panel-2); }
+.field.err input, .field.err textarea { border-color: var(--out); }
+.err-msg { color: var(--out); font-size: 14px; margin-top: 6px; }
+.warn { background: #FFF6CC; border: 1px solid #E8CF6B; border-radius: 6px; padding: 10px 12px; font-size: 14px; margin-top: 8px; }
+.warn button { text-decoration: underline; font-weight: 600; }
+.pick { display: grid; gap: 6px; }
+.pick.racks6 { grid-template-columns: repeat(6, 1fr); }
+.pick.five { grid-template-columns: repeat(5, 1fr); }
+.pick.six { grid-template-columns: repeat(6, 1fr); }
+.pick button {
+  min-height: 46px; border: 1px solid #AAB6BD; border-radius: 6px; background: var(--white);
+  font-family: var(--cond); font-weight: 700; font-size: 19px; position: relative;
+}
+.pick button.wide { font-family: 'Barlow', sans-serif; font-weight: 500; font-size: 14px; }
+.pick button[aria-pressed="true"] { background: var(--panel); color: var(--white); border-color: var(--panel); }
+.pick button .dot { position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+.loc-preview { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--white); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.stepper { display: flex; align-items: stretch; gap: 8px; }
+.stepper button {
+  width: 56px; min-height: 56px; border-radius: 8px; background: var(--steel); font-size: 28px; font-weight: 500; flex: none;
+  border: 1px solid #B8C3C9;
+}
+.stepper button:active { background: var(--steel-2); }
+.stepper input { flex: 1; min-width: 0; text-align: center; font-family: var(--cond); font-weight: 700; font-size: 28px; border: 1px solid #AAB6BD; border-radius: 8px; }
+.stepper select { width: 92px; border: 1px solid #AAB6BD; border-radius: 8px; background: var(--white); padding: 0 8px; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.seg button {
+  min-height: 46px; border-radius: 6px; border: 1px solid #AAB6BD; background: var(--white); font-weight: 600; font-size: 15px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.seg button::before { content: ''; width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
+.seg button[aria-pressed="true"] { border-width: 2px; }
+.seg button.st-ok[aria-pressed="true"] { background: #E5F3EA; border-color: var(--ok); }
+.seg button.st-low[aria-pressed="true"] { background: #FBF0D6; border-color: var(--low); }
+.seg button.st-out[aria-pressed="true"] { background: #F8E3E1; border-color: var(--out); }
+.seg button.st-order[aria-pressed="true"] { background: #E3EBF8; border-color: var(--order); }
+.seg button.st-nc[aria-pressed="true"] { background: #EEF1F2; border-color: var(--nc); }
+.hint { font-size: 14px; color: var(--muted); margin: 6px 0 0; }
+
+/* ---------- bottom sheets, dialogs, toast ---------- */
+.sheet-wrap { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; justify-content: flex-end; }
+.sheet-back { position: absolute; inset: 0; background: rgba(20,32,40,.45); animation: fade .2s; }
+.sheet {
+  position: relative; background: var(--white); border-radius: 12px 12px 0 0; max-height: calc(100% - 36px);
+  display: flex; flex-direction: column; animation: up .24s cubic-bezier(.2,.7,.2,1); width: 100%; max-width: 760px; margin: 0 auto;
+}
+.sheet::before { content: ''; width: 40px; height: 4px; border-radius: 2px; background: #C3CCD1; position: absolute; top: 7px; left: 50%; margin-left: -20px; }
+.sheet-head { display: flex; align-items: flex-start; gap: 10px; padding: 18px 12px 10px 16px; border-bottom: 1px solid var(--line); }
+.sheet-head .t { flex: 1; min-width: 0; }
+.sheet-head h2 { margin: 6px 0 0; font-size: 19px; line-height: 1.25; font-weight: 600; }
+.sheet-head .meta { color: var(--muted); font-size: 14px; margin-top: 2px; }
+.sheet-body { overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0 0 12px; flex: 1; }
+.sheet-body.pad { padding: 14px 16px 16px; }
+.sheet-foot { padding: 10px 16px calc(12px + var(--safe-b)); border-top: 1px solid var(--line); display: flex; gap: 10px; }
+.sheet-foot .btn { flex: 1; }
+.part-title { font-size: 21px; line-height: 1.25; margin: 4px 0 6px; font-weight: 600; overflow-wrap: anywhere; }
+.pn-line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 17px; }
+.pn-line .pn { font-weight: 700; letter-spacing: .01em; overflow-wrap: anywhere; }
+.link { color: var(--panel-2); font-weight: 600; text-decoration: underline; min-height: 36px; }
+.block-gap { margin-top: 18px; }
+.audit { font-size: 13.5px; color: var(--muted); margin-top: 18px; line-height: 1.5; }
+@keyframes up { from { transform: translateY(40px); opacity: .4; } to { transform: none; opacity: 1; } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+.dialog-wrap { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 20px; }
+.dialog { position: relative; background: var(--white); border-radius: 10px; padding: 20px; width: 100%; max-width: 420px; animation: up .2s; }
+.dialog h3 { margin: 0 0 8px; font-size: 19px; }
+.dialog p { margin: 0 0 6px; color: var(--muted); }
+.dialog .row-btns { margin-top: 18px; }
+.toast {
+  position: fixed; left: 12px; right: 12px; bottom: calc(var(--tabbar) + var(--safe-b) + 12px); z-index: 80;
+  background: var(--ink); color: var(--white); border-radius: 8px; padding: 12px 14px; display: flex; align-items: center; gap: 12px;
+  max-width: 560px; margin: 0 auto; animation: up .2s; font-size: 15px;
+}
+.toast span { flex: 1; }
+.toast button { color: var(--tape); font-weight: 700; min-height: 36px; padding: 0 6px; }
+
+/* ---------- records ---------- */
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.stats button { background: var(--white); padding: 12px 10px; text-align: left; min-height: 72px; }
+.stats b { display: block; font-family: var(--cond); font-size: 26px; line-height: 1.1; }
+.stats span { font-size: 13.5px; color: var(--muted); }
+.panel-box { background: var(--white); border: 1px solid var(--line); border-radius: 6px; padding: 14px; }
+.panel-box p { margin: 0 0 10px; color: var(--muted); font-size: 15px; }
+.act-list .item { grid-template-columns: 4px 1fr; }
+.act-list .when { font-size: 13px; color: var(--muted); }
+.toggle { display: flex; gap: 0; border: 1px solid #AAB6BD; border-radius: 6px; overflow: hidden; }
+.toggle button { flex: 1; min-height: 44px; background: var(--white); font-weight: 500; }
+.toggle button[aria-pressed="true"] { background: var(--panel); color: var(--white); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* ---------- Google Sheets edition ---------- */
+a.btn { text-decoration: none; color: inherit; }
+.syncbar { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 90; pointer-events: none; opacity: 0; transition: opacity .2s; overflow: hidden; }
+.syncbar::after { content: ''; position: absolute; top: 0; bottom: 0; width: 35%; background: var(--tape); animation: slide 1.1s ease-in-out infinite; }
+body.busy .syncbar { opacity: 1; }
+@keyframes slide { from { left: -35%; } to { left: 100%; } }
+.syncbtn {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 10px; border-radius: 20px;
+  color: #CFE0EA; font-size: 14px; font-weight: 500; border: 1px solid rgba(255,255,255,.22);
+}
+.syncbtn svg { width: 18px; height: 18px; }
+body.busy .syncbtn svg { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.banner {
+  display: flex; align-items: center; gap: 12px; background: #FBF0D6; border-bottom: 1px solid #E8CF6B;
+  padding: 10px 16px; font-size: 14.5px; color: #4A3A00;
+}
+.banner span { flex: 1; }
+.banner button { font-weight: 700; text-decoration: underline; min-height: 40px; padding: 0 6px; }
+.conn { margin: 0 0 12px !important; color: var(--ink) !important; }
+.hero-tape { background: var(--white); border: 1px solid var(--line); border-radius: 6px; padding: 16px; }
+.hero-tape p { margin: 10px 0 0; color: var(--muted); }
+body.connect-mode .tabbar { display: none; }
+body.connect-mode #view { padding-bottom: 24px; }
+
+</style>
+</head>
+<body>
+<main id="view" aria-live="polite"></main>
+<script>!function(f){typeof module!='undefined'&&typeof exports=='object'?module.exports=f():typeof define!='undefined'&&define.amd?define(f):(typeof self!='undefined'?self:this).fflate=f()}(function(){var _e={};"use strict";var t=(typeof module!='undefined'&&typeof exports=='object'?function(_f){"use strict";var e,t=";var __w=require('worker_threads');__w.parentPort.on('message',function(m){onmessage({data:m})}),postMessage=function(m,t){__w.parentPort.postMessage(m,t)},close=process.exit;self=global";try{e=require("worker_threads").Worker}catch(e){}exports.default=e?function(r,n,o,a,s){var u=!1,i=new e(r+t,{eval:!0}).on("error",(function(e){return s(e,null)})).on("message",(function(e){return s(null,e)})).on("exit",(function(e){e&&!u&&s(Error("exited with code "+e),null)}));return i.postMessage(o,a),i.terminate=function(){return u=!0,e.prototype.terminate.call(i)},i}:function(e,t,r,n,o){setImmediate((function(){return o(Error("async operations unsupported - update to Node 12+ (or Node 10-11 with the --experimental-worker CLI flag)"),null)}));var a=function(){};return{terminate:a,postMessage:a}};return _f}:function(_f){"use strict";var e={};_f.default=function(r,t,s,a,n){var o=new Worker(e[t]||(e[t]=URL.createObjectURL(new Blob([r+';addEventListener("error",function(e){e=e.error;postMessage({$e$:[e.message,e.code,e.stack]})})'],{type:"text/javascript"}))));return o.onmessage=function(e){var r=e.data,t=r.$e$;if(t){var s=Error(t[0]);s.code=t[1],s.stack=t[2],n(s,null)}else n(null,r)},o.postMessage(s,a),o};return _f})({}),n=Uint8Array,r=Uint16Array,e=Int32Array,i=new n([0,0,0,0,0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,0,0,0,0]),o=new n([0,0,0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13,0,0]),s=new n([16,17,18,0,8,7,9,6,10,5,11,4,12,3,13,2,14,1,15]),a=function(t,n){for(var i=new r(31),o=0;o<31;++o)i[o]=n+=1<<t[o-1];var s=new e(i[30]);for(o=1;o<30;++o)for(var a=i[o];a<i[o+1];++a)s[a]=a-i[o]<<5|o;return{b:i,r:s}},u=a(i,2),h=u.b,f=u.r;h[28]=258,f[258]=28;for(var l=a(o,0),c=l.b,p=l.r,v=new r(32768),d=0;d<32768;++d){var g=(43690&d)>>1|(21845&d)<<1;v[d]=((65280&(g=(61680&(g=(52428&g)>>2|(13107&g)<<2))>>4|(3855&g)<<4))>>8|(255&g)<<8)>>1}var y=function(t,n,e){for(var i=t.length,o=0,s=new r(n);o<i;++o)t[o]&&++s[t[o]-1];var a,u=new r(n);for(o=1;o<n;++o)u[o]=u[o-1]+s[o-1]<<1;if(e){a=new r(1<<n);var h=15-n;for(o=0;o<i;++o)if(t[o])for(var f=o<<4|t[o],l=n-t[o],c=u[t[o]-1]++<<l,p=c|(1<<l)-1;c<=p;++c)a[v[c]>>h]=f}else for(a=new r(i),o=0;o<i;++o)t[o]&&(a[o]=v[u[t[o]-1]++]>>15-t[o]);return a},m=new n(288);for(d=0;d<144;++d)m[d]=8;for(d=144;d<256;++d)m[d]=9;for(d=256;d<280;++d)m[d]=7;for(d=280;d<288;++d)m[d]=8;var b=new n(32);for(d=0;d<32;++d)b[d]=5;var w=y(m,9,0),x=y(m,9,1),z=y(b,5,0),k=y(b,5,1),M=function(t){for(var n=t[0],r=1;r<t.length;++r)t[r]>n&&(n=t[r]);return n},S=function(t,n,r){var e=n/8|0;return(t[e]|t[e+1]<<8)>>(7&n)&r},A=function(t,n){var r=n/8|0;return(t[r]|t[r+1]<<8|t[r+2]<<16)>>(7&n)},T=function(t){return(t+7)/8|0},D=function(t,r,e){return(null==r||r<0)&&(r=0),(null==e||e>t.length)&&(e=t.length),new n(t.subarray(r,e))};_e.FlateErrorCode={UnexpectedEOF:0,InvalidBlockType:1,InvalidLengthLiteral:2,InvalidDistance:3,StreamFinished:4,NoStreamHandler:5,InvalidHeader:6,NoCallback:7,InvalidUTF8:8,ExtraFieldTooLong:9,InvalidDate:10,FilenameTooLong:11,StreamFinishing:12,InvalidZipData:13,UnknownCompressionMethod:14};var C=["unexpected EOF","invalid block type","invalid length/literal","invalid distance","stream finished","no stream handler",,"no callback","invalid UTF-8 data","extra field too long","date not in range 1980-2099","filename too long","stream finishing","invalid zip data"],I=function(t,n,r){var e=Error(n||C[t]);if(e.code=t,Error.captureStackTrace&&Error.captureStackTrace(e,I),!r)throw e;return e},U=function(t,r,e,a){var u=t.length,f=a?a.length:0;if(!u||r.f&&!r.l)return e||new n(0);var l=!e,p=l||2!=r.i,v=r.i;l&&(e=new n(3*u));var d=function(t){var r=e.length;if(t>r){var i=new n(Math.max(2*r,t));i.set(e),e=i}},g=r.f||0,m=r.p||0,b=r.b||0,w=r.l,z=r.d,C=r.m,U=r.n,F=8*u;do{if(!w){g=S(t,m,1);var E=S(t,m+1,3);if(m+=3,!E){var Z=t[(J=T(m)+4)-4]|t[J-3]<<8,q=J+Z;if(q>u){v&&I(0);break}p&&d(b+Z),e.set(t.subarray(J,q),b),r.b=b+=Z,r.p=m=8*q,r.f=g;continue}if(1==E)w=x,z=k,C=9,U=5;else if(2==E){var O=S(t,m,31)+257,G=S(t,m+10,15)+4,L=O+S(t,m+5,31)+1;m+=14;for(var H=new n(L),j=new n(19),N=0;N<G;++N)j[s[N]]=S(t,m+3*N,7);m+=3*G;var P=M(j),B=(1<<P)-1,Y=y(j,P,1);for(N=0;N<L;){var J,K=Y[S(t,m,B)];if(m+=15&K,(J=K>>4)<16)H[N++]=J;else{var Q=0,R=0;for(16==J?(R=3+S(t,m,3),m+=2,Q=H[N-1]):17==J?(R=3+S(t,m,7),m+=3):18==J&&(R=11+S(t,m,127),m+=7);R--;)H[N++]=Q}}var V=H.subarray(0,O),W=H.subarray(O);C=M(V),U=M(W),w=y(V,C,1),z=y(W,U,1)}else I(1);if(m>F){v&&I(0);break}}p&&d(b+131072);for(var X=(1<<C)-1,$=(1<<U)-1,_=m;;_=m){var tt=(Q=w[A(t,m)&X])>>4;if((m+=15&Q)>F){v&&I(0);break}if(Q||I(2),tt<256)e[b++]=tt;else{if(256==tt){_=m,w=null;break}var nt=tt-254;tt>264&&(nt=S(t,m,(1<<(it=i[N=tt-257]))-1)+h[N],m+=it);var rt=z[A(t,m)&$],et=rt>>4;if(rt||I(3),m+=15&rt,W=c[et],et>3){var it=o[et];W+=A(t,m)&(1<<it)-1,m+=it}if(m>F){v&&I(0);break}p&&d(b+131072);var ot=b+nt;if(b<W){var st=f-W,at=Math.min(W,ot);for(st+b<0&&I(3);b<at;++b)e[b]=a[st+b]}for(;b<ot;++b)e[b]=e[b-W]}}r.l=w,r.p=_,r.b=b,r.f=g,w&&(g=1,r.m=C,r.d=z,r.n=U)}while(!g);return b!=e.length&&l?D(e,0,b):e.subarray(0,b)},F=function(t,n,r){var e=n/8|0;t[e]|=r<<=7&n,t[e+1]|=r>>8},E=function(t,n,r){var e=n/8|0;t[e]|=r<<=7&n,t[e+1]|=r>>8,t[e+2]|=r>>16},Z=function(t,e){for(var i=[],o=0;o<t.length;++o)t[o]&&i.push({s:o,f:t[o]});var s=i.length,a=i.slice();if(!s)return{t:N,l:0};if(1==s){var u=new n(i[0].s+1);return u[i[0].s]=1,{t:u,l:1}}i.sort((function(t,n){return t.f-n.f})),i.push({s:-1,f:25001});var h=i[0],f=i[1],l=0,c=1,p=2;for(i[0]={s:-1,f:h.f+f.f,l:h,r:f};c!=s-1;)h=i[i[l].f<i[p].f?l++:p++],f=i[l!=c&&i[l].f<i[p].f?l++:p++],i[c++]={s:-1,f:h.f+f.f,l:h,r:f};var v=a[0].s;for(o=1;o<s;++o)a[o].s>v&&(v=a[o].s);var d=new r(v+1),g=q(i[c-1],d,0);if(g>e){o=0;var y=0,m=g-e,b=1<<m;for(a.sort((function(t,n){return d[n.s]-d[t.s]||t.f-n.f}));o<s;++o){var w=a[o].s;if(!(d[w]>e))break;y+=b-(1<<g-d[w]),d[w]=e}for(y>>=m;y>0;){var x=a[o].s;d[x]<e?y-=1<<e-d[x]++-1:++o}for(;o>=0&&y;--o){var z=a[o].s;d[z]==e&&(--d[z],++y)}g=e}return{t:new n(d),l:g}},q=function(t,n,r){return-1==t.s?Math.max(q(t.l,n,r+1),q(t.r,n,r+1)):n[t.s]=r},O=function(t){for(var n=t.length;n&&!t[--n];);for(var e=new r(++n),i=0,o=t[0],s=1,a=function(t){e[i++]=t},u=1;u<=n;++u)if(t[u]==o&&u!=n)++s;else{if(!o&&s>2){for(;s>138;s-=138)a(32754);s>2&&(a(s>10?s-11<<5|28690:s-3<<5|12305),s=0)}else if(s>3){for(a(o),--s;s>6;s-=6)a(8304);s>2&&(a(s-3<<5|8208),s=0)}for(;s--;)a(o);s=1,o=t[u]}return{c:e.subarray(0,i),n:n}},G=function(t,n){for(var r=0,e=0;e<n.length;++e)r+=t[e]*n[e];return r},L=function(t,n,r){var e=r.length,i=T(n+2);t[i]=255&e,t[i+1]=e>>8,t[i+2]=255^t[i],t[i+3]=255^t[i+1];for(var o=0;o<e;++o)t[i+o+4]=r[o];return 8*(i+4+e)},H=function(t,n,e,a,u,h,f,l,c,p,v){F(n,v++,e),++u[256];for(var d=Z(u,15),g=d.t,x=d.l,k=Z(h,15),M=k.t,S=k.l,A=O(g),T=A.c,D=A.n,C=O(M),I=C.c,U=C.n,q=new r(19),H=0;H<T.length;++H)++q[31&T[H]];for(H=0;H<I.length;++H)++q[31&I[H]];for(var j=Z(q,7),N=j.t,P=j.l,B=19;B>4&&!N[s[B-1]];--B);var Y,J,K,Q,R=p+5<<3,V=G(u,m)+G(h,b)+f,W=G(u,g)+G(h,M)+f+14+3*B+G(q,N)+2*q[16]+3*q[17]+7*q[18];if(c>=0&&R<=V&&R<=W)return L(n,v,t.subarray(c,c+p));if(F(n,v,1+(W<V)),v+=2,W<V){Y=y(g,x,0),J=g,K=y(M,S,0),Q=M;var X=y(N,P,0);for(F(n,v,D-257),F(n,v+5,U-1),F(n,v+10,B-4),v+=14,H=0;H<B;++H)F(n,v+3*H,N[s[H]]);v+=3*B;for(var $=[T,I],_=0;_<2;++_){var tt=$[_];for(H=0;H<tt.length;++H)F(n,v,X[rt=31&tt[H]]),v+=N[rt],rt>15&&(F(n,v,tt[H]>>5&127),v+=tt[H]>>12)}}else Y=w,J=m,K=z,Q=b;for(H=0;H<l;++H){var nt=a[H];if(nt>255){var rt;E(n,v,Y[257+(rt=nt>>18&31)]),v+=J[rt+257],rt>7&&(F(n,v,nt>>23&31),v+=i[rt]);var et=31&nt;E(n,v,K[et]),v+=Q[et],et>3&&(E(n,v,nt>>5&8191),v+=o[et])}else E(n,v,Y[nt]),v+=J[nt]}return E(n,v,Y[256]),v+J[256]},j=new e([65540,131080,131088,131104,262176,1048704,1048832,2114560,2117632]),N=new n(0),P=function(t,s,a,u,h,l){var c=l.z||t.length,v=new n(u+c+5*(1+Math.ceil(c/7e3))+h),d=v.subarray(u,v.length-h),g=l.l,y=7&(l.r||0);if(s){y&&(d[0]=l.r>>3);for(var m=j[s-1],b=m>>13,w=8191&m,x=(1<<a)-1,z=l.p||new r(32768),k=l.h||new r(x+1),M=Math.ceil(a/3),S=2*M,A=function(n){return(t[n]^t[n+1]<<M^t[n+2]<<S)&x},C=new e(25e3),I=new r(288),U=new r(32),F=0,E=0,Z=l.i||0,q=0,O=l.w||0,G=0;Z+2<c;++Z){var N=A(Z),P=32767&Z,B=k[N];if(z[P]=B,k[N]=P,O<=Z){var Y=c-Z;if((F>7e3||q>24576)&&(Y>423||!g)){y=H(t,d,0,C,I,U,E,q,G,Z-G,y),q=F=E=0,G=Z;for(var J=0;J<286;++J)I[J]=0;for(J=0;J<30;++J)U[J]=0}var K=2,Q=0,R=w,V=P-B&32767;if(Y>2&&N==A(Z-V))for(var W=Math.min(b,Y)-1,X=Math.min(32767,Z),$=Math.min(258,Y);V<=X&&--R&&P!=B;){if(t[Z+K]==t[Z+K-V]){for(var _=0;_<$&&t[Z+_]==t[Z+_-V];++_);if(_>K){if(K=_,Q=V,_>W)break;var tt=Math.min(V,_-2),nt=0;for(J=0;J<tt;++J){var rt=Z-V+J&32767,et=rt-z[rt]&32767;et>nt&&(nt=et,B=rt)}}}V+=(P=B)-(B=z[P])&32767}if(Q){C[q++]=268435456|f[K]<<18|p[Q];var it=31&f[K],ot=31&p[Q];E+=i[it]+o[ot],++I[257+it],++U[ot],O=Z+K,++F}else C[q++]=t[Z],++I[t[Z]]}}for(Z=Math.max(Z,O);Z<c;++Z)C[q++]=t[Z],++I[t[Z]];y=H(t,d,g,C,I,U,E,q,G,Z-G,y),g||(l.r=7&y|d[y/8|0]<<3,y-=7,l.h=k,l.p=z,l.i=Z,l.w=O)}else{for(Z=l.w||0;Z<c+g;Z+=65535){var st=Z+65535;st>=c&&(d[y/8|0]=g,st=c),y=L(d,y+1,t.subarray(Z,st))}l.i=c}return D(v,0,u+T(y)+h)},B=function(){for(var t=new Int32Array(256),n=0;n<256;++n){for(var r=n,e=9;--e;)r=(1&r&&-306674912)^r>>>1;t[n]=r}return t}(),Y=function(){var t=-1;return{p:function(n){for(var r=t,e=0;e<n.length;++e)r=B[255&r^n[e]]^r>>>8;t=r},d:function(){return~t}}},J=function(){var t=1,n=0;return{p:function(r){for(var e=t,i=n,o=0|r.length,s=0;s!=o;){for(var a=Math.min(s+2655,o);s<a;++s)i+=e+=r[s];e=(65535&e)+15*(e>>16),i=(65535&i)+15*(i>>16)}t=e,n=i},d:function(){return(255&(t%=65521))<<24|(65280&t)<<8|(255&(n%=65521))<<8|n>>8}}},K=function(t,r,e,i,o){if(!o&&(o={l:1},r.dictionary)){var s=r.dictionary.subarray(-32768),a=new n(s.length+t.length);a.set(s),a.set(t,s.length),t=a,o.w=s.length}return P(t,null==r.level?6:r.level,null==r.mem?o.l?Math.ceil(1.5*Math.max(8,Math.min(13,Math.log(t.length)))):20:12+r.mem,e,i,o)},Q=function(t,n){var r={};for(var e in t)r[e]=t[e];for(var e in n)r[e]=n[e];return r},R=function(t,n,r){for(var e=t(),i=""+t,o=i.slice(i.indexOf("[")+1,i.lastIndexOf("]")).replace(/\s+/g,"").split(","),s=0;s<e.length;++s){var a=e[s],u=o[s];if("function"==typeof a){n+=";"+u+"=";var h=""+a;if(a.prototype)if(-1!=h.indexOf("[native code]")){var f=h.indexOf(" ",8)+1;n+=h.slice(f,h.indexOf("(",f))}else for(var l in n+=h,a.prototype)n+=";"+u+".prototype."+l+"="+a.prototype[l];else n+=h}else r[u]=a}return n},V=[],W=function(t){var n=[];for(var r in t)t[r].buffer&&n.push((t[r]=new t[r].constructor(t[r])).buffer);return n},X=function(n,r,e,i){if(!V[e]){for(var o="",s={},a=n.length-1,u=0;u<a;++u)o=R(n[u],o,s);V[e]={c:R(n[a],o,s),e:s}}var h=Q({},V[e].e);return(0,t.default)(V[e].c+";onmessage=function(e){for(var k in e.data)self[k]=e.data[k];onmessage="+r+"}",e,h,W(h),i)},$=function(){return[n,r,e,i,o,s,h,c,x,k,v,C,y,M,S,A,T,D,I,U,Tt,it,ot]},_=function(){return[n,r,e,i,o,s,f,p,w,m,z,b,v,j,N,y,F,E,Z,q,O,G,L,H,T,D,P,K,kt,it]},tt=function(){return[pt,gt,ct,Y,B]},nt=function(){return[vt,dt]},rt=function(){return[yt,ct,J]},et=function(){return[mt]},it=function(t){return postMessage(t,[t.buffer])},ot=function(t){return t&&{out:t.size&&new n(t.size),dictionary:t.dictionary}},st=function(t,n,r,e,i,o){var s=X(r,e,i,(function(t,n){s.terminate(),o(t,n)}));return s.postMessage([t,n],n.consume?[t.buffer]:[]),function(){s.terminate()}},at=function(t){return t.ondata=function(t,n){return postMessage([t,n],[t.buffer])},function(n){n.data.length?(t.push(n.data[0],n.data[1]),postMessage([n.data[0].length])):t.flush()}},ut=function(t,n,r,e,i,o,s){var a,u=X(t,e,i,(function(t,r){t?(u.terminate(),n.ondata.call(n,t)):Array.isArray(r)?1==r.length?(n.queuedSize-=r[0],n.ondrain&&n.ondrain(r[0])):(r[1]&&u.terminate(),n.ondata.call(n,t,r[0],r[1])):s(r)}));u.postMessage(r),n.queuedSize=0,n.push=function(t,r){n.ondata||I(5),a&&n.ondata(I(4,0,1),null,!!r),n.queuedSize+=t.length,u.postMessage([t,a=r],[t.buffer])},n.terminate=function(){u.terminate()},o&&(n.flush=function(){u.postMessage([])})},ht=function(t,n){return t[n]|t[n+1]<<8},ft=function(t,n){return(t[n]|t[n+1]<<8|t[n+2]<<16|t[n+3]<<24)>>>0},lt=function(t,n){return ft(t,n)+4294967296*ft(t,n+4)},ct=function(t,n,r){for(;r;++n)t[n]=r,r>>>=8},pt=function(t,n){var r=n.filename;if(t[0]=31,t[1]=139,t[2]=8,t[8]=n.level<2?4:9==n.level?2:0,t[9]=3,0!=n.mtime&&ct(t,4,Math.floor(new Date(n.mtime||Date.now())/1e3)),r){t[3]=8;for(var e=0;e<=r.length;++e)t[e+10]=r.charCodeAt(e)}},vt=function(t){31==t[0]&&139==t[1]&&8==t[2]||I(6,"invalid gzip data");var n=t[3],r=10;4&n&&(r+=2+(t[10]|t[11]<<8));for(var e=(n>>3&1)+(n>>4&1);e>0;e-=!t[r++]);return r+(2&n)},dt=function(t){var n=t.length;return(t[n-4]|t[n-3]<<8|t[n-2]<<16|t[n-1]<<24)>>>0},gt=function(t){return 10+(t.filename?t.filename.length+1:0)},yt=function(t,n){var r=n.level,e=0==r?0:r<6?1:9==r?3:2;if(t[0]=120,t[1]=e<<6|(n.dictionary&&32),t[1]|=31-(t[0]<<8|t[1])%31,n.dictionary){var i=J();i.p(n.dictionary),ct(t,2,i.d())}},mt=function(t,n){return(8!=(15&t[0])||t[0]>>4>7||(t[0]<<8|t[1])%31)&&I(6,"invalid zlib data"),(t[1]>>5&1)==+!n&&I(6,"invalid zlib data: "+(32&t[1]?"need":"unexpected")+" dictionary"),2+(t[1]>>3&4)};function bt(t,n){return"function"==typeof t&&(n=t,t={}),this.ondata=n,t}var wt=function(){function t(t,r){if("function"==typeof t&&(r=t,t={}),this.ondata=r,this.o=t||{},this.s={l:0,i:32768,w:32768,z:32768},this.b=new n(98304),this.o.dictionary){var e=this.o.dictionary.subarray(-32768);this.b.set(e,32768-e.length),this.s.i=32768-e.length}}return t.prototype.p=function(t,n){this.ondata(K(t,this.o,0,0,this.s),n)},t.prototype.push=function(t,r){this.ondata||I(5),this.s.l&&I(4);var e=t.length+this.s.z;if(e>this.b.length){if(e>2*this.b.length-32768){var i=new n(-32768&e);i.set(this.b.subarray(0,this.s.z)),this.b=i}var o=this.b.length-this.s.z;this.b.set(t.subarray(0,o),this.s.z),this.s.z=this.b.length,this.p(this.b,!1),this.b.set(this.b.subarray(-32768)),this.b.set(t.subarray(o),32768),this.s.z=t.length-o+32768,this.s.i=32766,this.s.w=32768}else this.b.set(t,this.s.z),this.s.z+=t.length;this.s.l=1&r,(this.s.z>this.s.w+8191||r)&&(this.p(this.b,r||!1),this.s.w=this.s.i,this.s.i-=2)},t.prototype.flush=function(){this.ondata||I(5),this.s.l&&I(4),this.p(this.b,!1),this.s.w=this.s.i,this.s.i-=2},t}();_e.Deflate=wt;var xt=function(){return function(t,n){ut([_,function(){return[at,wt]}],this,bt.call(this,t,n),(function(t){var n=new wt(t.data);onmessage=at(n)}),6,1)}}();function zt(t,n,r){return r||(r=n,n={}),"function"!=typeof r&&I(7),st(t,n,[_],(function(t){return it(kt(t.data[0],t.data[1]))}),0,r)}function kt(t,n){return K(t,n||{},0,0)}_e.AsyncDeflate=xt,_e.deflate=zt,_e.deflateSync=kt;var Mt=function(){function t(t,r){"function"==typeof t&&(r=t,t={}),this.ondata=r;var e=t&&t.dictionary&&t.dictionary.subarray(-32768);this.s={i:0,b:e?e.length:0},this.o=new n(32768),this.p=new n(0),e&&this.o.set(e)}return t.prototype.e=function(t){if(this.ondata||I(5),this.d&&I(4),this.p.length){if(t.length){var r=new n(this.p.length+t.length);r.set(this.p),r.set(t,this.p.length),this.p=r}}else this.p=t},t.prototype.c=function(t){this.s.i=+(this.d=t||!1);var n=this.s.b,r=U(this.p,this.s,this.o);this.ondata(D(r,n,this.s.b),this.d),this.o=D(r,this.s.b-32768),this.s.b=this.o.length,this.p=D(this.p,this.s.p/8|0),this.s.p&=7},t.prototype.push=function(t,n){this.e(t),this.c(n)},t}();_e.Inflate=Mt;var St=function(){return function(t,n){ut([$,function(){return[at,Mt]}],this,bt.call(this,t,n),(function(t){var n=new Mt(t.data);onmessage=at(n)}),7,0)}}();function At(t,n,r){return r||(r=n,n={}),"function"!=typeof r&&I(7),st(t,n,[$],(function(t){return it(Tt(t.data[0],ot(t.data[1])))}),1,r)}function Tt(t,n){return U(t,{i:2},n&&n.out,n&&n.dictionary)}_e.AsyncInflate=St,_e.inflate=At,_e.inflateSync=Tt;var Dt=function(){function t(t,n){this.c=Y(),this.l=0,this.v=1,wt.call(this,t,n)}return t.prototype.push=function(t,n){this.c.p(t),this.l+=t.length,wt.prototype.push.call(this,t,n)},t.prototype.p=function(t,n){var r=K(t,this.o,this.v&&gt(this.o),n&&8,this.s);this.v&&(pt(r,this.o),this.v=0),n&&(ct(r,r.length-8,this.c.d()),ct(r,r.length-4,this.l)),this.ondata(r,n)},t.prototype.flush=function(){wt.prototype.flush.call(this)},t}();_e.Gzip=Dt,_e.Compress=Dt;var Ct=function(){return function(t,n){ut([_,tt,function(){return[at,wt,Dt]}],this,bt.call(this,t,n),(function(t){var n=new Dt(t.data);onmessage=at(n)}),8,1)}}();function It(t,n,r){return r||(r=n,n={}),"function"!=typeof r&&I(7),st(t,n,[_,tt,function(){return[Ut]}],(function(t){return it(Ut(t.data[0],t.data[1]))}),2,r)}function Ut(t,n){n||(n={});var r=Y(),e=t.length;r.p(t);var i=K(t,n,gt(n),8),o=i.length;return pt(i,n),ct(i,o-8,r.d()),ct(i,o-4,e),i}_e.AsyncGzip=Ct,_e.AsyncCompress=Ct,_e.gzip=It,_e.compress=It,_e.gzipSync=Ut,_e.compressSync=Ut;var Ft=function(){function t(t,n){this.v=1,this.r=0,Mt.call(this,t,n)}return t.prototype.push=function(t,r){if(Mt.prototype.e.call(this,t),this.r+=t.length,this.v){var e=this.p.subarray(this.v-1),i=e.length>3?vt(e):4;if(i>e.length){if(!r)return}else this.v>1&&this.onmember&&this.onmember(this.r-e.length);this.p=e.subarray(i),this.v=0}Mt.prototype.c.call(this,r),!this.s.f||this.s.l||r||(this.v=T(this.s.p)+9,this.s={i:0},this.o=new n(0),this.push(new n(0),r))},t}();_e.Gunzip=Ft;var Et=function(){return function(t,n){var r=this;ut([$,nt,function(){return[at,Mt,Ft]}],this,bt.call(this,t,n),(function(t){var n=new Ft(t.data);n.onmember=function(t){return postMessage(t)},onmessage=at(n)}),9,0,(function(t){return r.onmember&&r.onmember(t)}))}}();function Zt(t,n,r){return r||(r=n,n={}),"function"!=typeof r&&I(7),st(t,n,[$,nt,function(){return[qt]}],(function(t){return it(qt(t.data[0],t.data[1]))}),3,r)}function qt(t,r){var e=vt(t);return e+8>t.length&&I(6,"invalid gzip data"),U(t.subarray(e,-8),{i:2},r&&r.out||new n(dt(t)),r&&r.dictionary)}_e.AsyncGunzip=Et,_e.gunzip=Zt,_e.gunzipSync=qt;var Ot=function(){function t(t,n){this.c=J(),this.v=1,wt.call(this,t,n)}return t.prototype.push=function(t,n){this.c.p(t),wt.prototype.push.call(this,t,n)},t.prototype.p=function(t,n){var r=K(t,this.o,this.v&&(this.o.dictionary?6:2),n&&4,this.s);this.v&&(yt(r,this.o),this.v=0),n&&ct(r,r.length-4,this.c.d()),this.ondata(r,n)},t.prototype.flush=function(){wt.prototype.flush.call(this)},t}();_e.Zlib=Ot;var Gt=function(){return function(t,n){ut([_,rt,function(){return[at,wt,Ot]}],this,bt.call(this,t,n),(function(t){var n=new Ot(t.data);onmessage=at(n)}),10,1)}}();function Lt(t,n,r){return r||(r=n,n={}),"function"!=typeof r&&I(7),st(t,n,[_,rt,function(){return[Ht]}],(function(t){return it(Ht(t.data[0],t.data[1]))}),4,r)}function Ht(t,n){n||(n={});var r=J();r.p(t);var e=K(t,n,n.dictionary?6:2,4);return yt(e,n),ct(e,e.length-4,r.d()),e}_e.AsyncZlib=Gt,_e.zlib=Lt,_e.zlibSync=Ht;var jt=function(){function t(t,n){Mt.call(this,t,n),this.v=t&&t.dictionary?2:1}return t.prototype.push=function(t,n){if(Mt.prototype.e.call(this,t),this.v){if(this.p.length<6&&!n)return;this.p=this.p.subarray(mt(this.p,this.v-1)),this.v=0}n&&(this.p.length<4&&I(6,"invalid zlib data"),this.p=this.p.subarray(0,-4)),Mt.prototype.c.call(this,n)},t}();_e.Unzlib=jt;var Nt=function(){return function(t,n){ut([$,et,function(){return[at,Mt,jt]}],this,bt.call(this,t,n),(function(t){var n=new jt(t.data);onmessage=at(n)}),11,0)}}();function Pt(t,n,r){return r||(r=n,n={}),"function"!=typeof r&&I(7),st(t,n,[$,et,function(){return[Bt]}],(function(t){return it(Bt(t.data[0],ot(t.data[1])))}),5,r)}function Bt(t,n){return U(t.subarray(mt(t,n&&n.dictionary),-4),{i:2},n&&n.out,n&&n.dictionary)}_e.AsyncUnzlib=Nt,_e.unzlib=Pt,_e.unzlibSync=Bt;var Yt=function(){function t(t,n){this.o=bt.call(this,t,n)||{},this.G=Ft,this.I=Mt,this.Z=jt}return t.prototype.i=function(){var t=this;this.s.ondata=function(n,r){t.ondata(n,r)}},t.prototype.push=function(t,r){if(this.ondata||I(5),this.s)this.s.push(t,r);else{if(this.p&&this.p.length){var e=new n(this.p.length+t.length);e.set(this.p),e.set(t,this.p.length)}else this.p=t;this.p.length>2&&(this.s=31==this.p[0]&&139==this.p[1]&&8==this.p[2]?new this.G(this.o):8!=(15&this.p[0])||this.p[0]>>4>7||(this.p[0]<<8|this.p[1])%31?new this.I(this.o):new this.Z(this.o),this.i(),this.s.push(this.p,r),this.p=null)}},t}();_e.Decompress=Yt;var Jt=function(){function t(t,n){Yt.call(this,t,n),this.queuedSize=0,this.G=Et,this.I=St,this.Z=Nt}return t.prototype.i=function(){var t=this;this.s.ondata=function(n,r,e){t.ondata(n,r,e)},this.s.ondrain=function(n){t.queuedSize-=n,t.ondrain&&t.ondrain(n)}},t.prototype.push=function(t,n){this.queuedSize+=t.length,Yt.prototype.push.call(this,t,n)},t}();function Kt(t,n,r){return r||(r=n,n={}),"function"!=typeof r&&I(7),31==t[0]&&139==t[1]&&8==t[2]?Zt(t,n,r):8!=(15&t[0])||t[0]>>4>7||(t[0]<<8|t[1])%31?At(t,n,r):Pt(t,n,r)}function Qt(t,n){return 31==t[0]&&139==t[1]&&8==t[2]?qt(t,n):8!=(15&t[0])||t[0]>>4>7||(t[0]<<8|t[1])%31?Tt(t,n):Bt(t,n)}_e.AsyncDecompress=Jt,_e.decompress=Kt,_e.decompressSync=Qt;var Rt=function(t,r,e,i){for(var o in t){var s=t[o],a=r+o,u=i;Array.isArray(s)&&(u=Q(i,s[1]),s=s[0]),s instanceof n?e[a]=[s,u]:(e[a+="/"]=[new n(0),u],Rt(s,a,e,i))}},Vt="undefined"!=typeof TextEncoder&&new TextEncoder,Wt="undefined"!=typeof TextDecoder&&new TextDecoder,Xt=0;try{Wt.decode(N,{stream:!0}),Xt=1}catch(t){}var $t=function(t){for(var n="",r=0;;){var e=t[r++],i=(e>127)+(e>223)+(e>239);if(r+i>t.length)return{s:n,r:D(t,r-1)};i?3==i?(e=((15&e)<<18|(63&t[r++])<<12|(63&t[r++])<<6|63&t[r++])-65536,n+=String.fromCharCode(55296|e>>10,56320|1023&e)):n+=String.fromCharCode(1&i?(31&e)<<6|63&t[r++]:(15&e)<<12|(63&t[r++])<<6|63&t[r++]):n+=String.fromCharCode(e)}},_t=function(){function t(t){this.ondata=t,Xt?this.t=new TextDecoder:this.p=N}return t.prototype.push=function(t,r){if(this.ondata||I(5),r=!!r,this.t)return this.ondata(this.t.decode(t,{stream:!0}),r),void(r&&(this.t.decode().length&&I(8),this.t=null));this.p||I(4);var e=new n(this.p.length+t.length);e.set(this.p),e.set(t,this.p.length);var i=$t(e),o=i.s,s=i.r;r?(s.length&&I(8),this.p=null):this.p=s,this.ondata(o,r)},t}();_e.DecodeUTF8=_t;var tn=function(){function t(t){this.ondata=t}return t.prototype.push=function(t,n){this.ondata||I(5),this.d&&I(4),this.ondata(nn(t),this.d=n||!1)},t}();function nn(t,r){if(r){for(var e=new n(t.length),i=0;i<t.length;++i)e[i]=t.charCodeAt(i);return e}if(Vt)return Vt.encode(t);var o=t.length,s=new n(t.length+(t.length>>1)),a=0,u=function(t){s[a++]=t};for(i=0;i<o;++i){if(a+5>s.length){var h=new n(a+8+(o-i<<1));h.set(s),s=h}var f=t.charCodeAt(i);f<128||r?u(f):f<2048?(u(192|f>>6),u(128|63&f)):f>55295&&f<57344?(u(240|(f=65536+(1047552&f)|1023&t.charCodeAt(++i))>>18),u(128|f>>12&63),u(128|f>>6&63),u(128|63&f)):(u(224|f>>12),u(128|f>>6&63),u(128|63&f))}return D(s,0,a)}function rn(t,n){if(n){for(var r="",e=0;e<t.length;e+=16384)r+=String.fromCharCode.apply(null,t.subarray(e,e+16384));return r}if(Wt)return Wt.decode(t);var i=$t(t),o=i.s;return(r=i.r).length&&I(8),o}_e.EncodeUTF8=tn,_e.strToU8=nn,_e.strFromU8=rn;var en=function(t){return 1==t?3:t<6?2:9==t?1:0},on=function(t,n){return n+30+ht(t,n+26)+ht(t,n+28)},sn=function(t,n,r){var e=ht(t,n+28),i=rn(t.subarray(n+46,n+46+e),!(2048&ht(t,n+8))),o=n+46+e,s=ft(t,n+20),a=r&&4294967295==s?an(t,o):[s,ft(t,n+24),ft(t,n+42)],u=a[0],h=a[1],f=a[2];return[ht(t,n+10),u,h,i,o+ht(t,n+30)+ht(t,n+32),f]},an=function(t,n){for(;1!=ht(t,n);n+=4+ht(t,n+2));return[lt(t,n+12),lt(t,n+4),lt(t,n+20)]},un=function(t){var n=0;if(t)for(var r in t){var e=t[r].length;e>65535&&I(9),n+=e+4}return n},hn=function(t,n,r,e,i,o,s,a){var u=e.length,h=r.extra,f=a&&a.length,l=un(h);ct(t,n,null!=s?33639248:67324752),n+=4,null!=s&&(t[n++]=20,t[n++]=r.os),t[n]=20,n+=2,t[n++]=r.flag<<1|(o<0&&8),t[n++]=i&&8,t[n++]=255&r.compression,t[n++]=r.compression>>8;var c=new Date(null==r.mtime?Date.now():r.mtime),p=c.getFullYear()-1980;if((p<0||p>119)&&I(10),ct(t,n,p<<25|c.getMonth()+1<<21|c.getDate()<<16|c.getHours()<<11|c.getMinutes()<<5|c.getSeconds()>>1),n+=4,-1!=o&&(ct(t,n,r.crc),ct(t,n+4,o<0?-o-2:o),ct(t,n+8,r.size)),ct(t,n+12,u),ct(t,n+14,l),n+=16,null!=s&&(ct(t,n,f),ct(t,n+6,r.attrs),ct(t,n+10,s),n+=14),t.set(e,n),n+=u,l)for(var v in h){var d=h[v],g=d.length;ct(t,n,+v),ct(t,n+2,g),t.set(d,n+4),n+=4+g}return f&&(t.set(a,n),n+=f),n},fn=function(t,n,r,e,i){ct(t,n,101010256),ct(t,n+8,r),ct(t,n+10,r),ct(t,n+12,e),ct(t,n+16,i)},ln=function(){function t(t){this.filename=t,this.c=Y(),this.size=0,this.compression=0}return t.prototype.process=function(t,n){this.ondata(null,t,n)},t.prototype.push=function(t,n){this.ondata||I(5),this.c.p(t),this.size+=t.length,n&&(this.crc=this.c.d()),this.process(t,n||!1)},t}();_e.ZipPassThrough=ln;var cn=function(){function t(t,n){var r=this;n||(n={}),ln.call(this,t),this.d=new wt(n,(function(t,n){r.ondata(null,t,n)})),this.compression=8,this.flag=en(n.level)}return t.prototype.process=function(t,n){try{this.d.push(t,n)}catch(t){this.ondata(t,null,n)}},t.prototype.push=function(t,n){ln.prototype.push.call(this,t,n)},t}();_e.ZipDeflate=cn;var pn=function(){function t(t,n){var r=this;n||(n={}),ln.call(this,t),this.d=new xt(n,(function(t,n,e){r.ondata(t,n,e)})),this.compression=8,this.flag=en(n.level),this.terminate=this.d.terminate}return t.prototype.process=function(t,n){this.d.push(t,n)},t.prototype.push=function(t,n){ln.prototype.push.call(this,t,n)},t}();_e.AsyncZipDeflate=pn;var vn=function(){function t(t){this.ondata=t,this.u=[],this.d=1}return t.prototype.add=function(t){var r=this;if(this.ondata||I(5),2&this.d)this.ondata(I(4+8*(1&this.d),0,1),null,!1);else{var e=nn(t.filename),i=e.length,o=t.comment,s=o&&nn(o),a=i!=t.filename.length||s&&o.length!=s.length,u=i+un(t.extra)+30;i>65535&&this.ondata(I(11,0,1),null,!1);var h=new n(u);hn(h,0,t,e,a,-1);var f=[h],l=function(){for(var t=0,n=f;t<n.length;t++)r.ondata(null,n[t],!1);f=[]},c=this.d;this.d=0;var p=this.u.length,v=Q(t,{f:e,u:a,o:s,t:function(){t.terminate&&t.terminate()},r:function(){if(l(),c){var t=r.u[p+1];t?t.r():r.d=1}c=1}}),d=0;t.ondata=function(e,i,o){if(e)r.ondata(e,i,o),r.terminate();else if(d+=i.length,f.push(i),o){var s=new n(16);ct(s,0,134695760),ct(s,4,t.crc),ct(s,8,d),ct(s,12,t.size),f.push(s),v.c=d,v.b=u+d+16,v.crc=t.crc,v.size=t.size,c&&v.r(),c=1}else c&&l()},this.u.push(v)}},t.prototype.end=function(){var t=this;2&this.d?this.ondata(I(4+8*(1&this.d),0,1),null,!0):(this.d?this.e():this.u.push({r:function(){1&t.d&&(t.u.splice(-1,1),t.e())},t:function(){}}),this.d=3)},t.prototype.e=function(){for(var t=0,r=0,e=0,i=0,o=this.u;i<o.length;i++)e+=46+(h=o[i]).f.length+un(h.extra)+(h.o?h.o.length:0);for(var s=new n(e+22),a=0,u=this.u;a<u.length;a++){var h;hn(s,t,h=u[a],h.f,h.u,-h.c-2,r,h.o),t+=46+h.f.length+un(h.extra)+(h.o?h.o.length:0),r+=h.b}fn(s,t,this.u.length,e,r),this.ondata(null,s,!0),this.d=2},t.prototype.terminate=function(){for(var t=0,n=this.u;t<n.length;t++)n[t].t();this.d=2},t}();function dn(t,r,e){e||(e=r,r={}),"function"!=typeof e&&I(7);var i={};Rt(t,"",i,r);var o=Object.keys(i),s=o.length,a=0,u=0,h=s,f=Array(s),l=[],c=function(){for(var t=0;t<l.length;++t)l[t]()},p=function(t,n){xn((function(){e(t,n)}))};xn((function(){p=e}));var v=function(){var t=new n(u+22),r=a,e=u-a;u=0;for(var i=0;i<h;++i){var o=f[i];try{var s=o.c.length;hn(t,u,o,o.f,o.u,s);var l=30+o.f.length+un(o.extra),c=u+l;t.set(o.c,c),hn(t,a,o,o.f,o.u,s,u,o.m),a+=16+l+(o.m?o.m.length:0),u=c+s}catch(t){return p(t,null)}}fn(t,a,f.length,e,r),p(null,t)};s||v();for(var d=function(t){var n=o[t],r=i[n],e=r[0],h=r[1],d=Y(),g=e.length;d.p(e);var y=nn(n),m=y.length,b=h.comment,w=b&&nn(b),x=w&&w.length,z=un(h.extra),k=0==h.level?0:8,M=function(r,e){if(r)c(),p(r,null);else{var i=e.length;f[t]=Q(h,{size:g,crc:d.d(),c:e,f:y,m:w,u:m!=n.length||w&&b.length!=x,compression:k}),a+=30+m+z+i,u+=76+2*(m+z)+(x||0)+i,--s||v()}};if(m>65535&&M(I(11,0,1),null),k)if(g<16e4)try{M(null,kt(e,h))}catch(t){M(t,null)}else l.push(zt(e,h,M));else M(null,e)},g=0;g<h;++g)d(g);return c}function gn(t,r){r||(r={});var e={},i=[];Rt(t,"",e,r);var o=0,s=0;for(var a in e){var u=e[a],h=u[0],f=u[1],l=0==f.level?0:8,c=(M=nn(a)).length,p=f.comment,v=p&&nn(p),d=v&&v.length,g=un(f.extra);c>65535&&I(11);var y=l?kt(h,f):h,m=y.length,b=Y();b.p(h),i.push(Q(f,{size:h.length,crc:b.d(),c:y,f:M,m:v,u:c!=a.length||v&&p.length!=d,o:o,compression:l})),o+=30+c+g+m,s+=76+2*(c+g)+(d||0)+m}for(var w=new n(s+22),x=o,z=s-o,k=0;k<i.length;++k){var M;hn(w,(M=i[k]).o,M,M.f,M.u,M.c.length);var S=30+M.f.length+un(M.extra);w.set(M.c,M.o+S),hn(w,o,M,M.f,M.u,M.c.length,M.o,M.m),o+=16+S+(M.m?M.m.length:0)}return fn(w,o,i.length,z,x),w}_e.Zip=vn,_e.zip=dn,_e.zipSync=gn;var yn=function(){function t(){}return t.prototype.push=function(t,n){this.ondata(null,t,n)},t.compression=0,t}();_e.UnzipPassThrough=yn;var mn=function(){function t(){var t=this;this.i=new Mt((function(n,r){t.ondata(null,n,r)}))}return t.prototype.push=function(t,n){try{this.i.push(t,n)}catch(t){this.ondata(t,null,n)}},t.compression=8,t}();_e.UnzipInflate=mn;var bn=function(){function t(t,n){var r=this;n<32e4?this.i=new Mt((function(t,n){r.ondata(null,t,n)})):(this.i=new St((function(t,n,e){r.ondata(t,n,e)})),this.terminate=this.i.terminate)}return t.prototype.push=function(t,n){this.i.terminate&&(t=D(t,0)),this.i.push(t,n)},t.compression=8,t}();_e.AsyncUnzipInflate=bn;var wn=function(){function t(t){this.onfile=t,this.k=[],this.o={0:yn},this.p=N}return t.prototype.push=function(t,r){var e=this;if(this.onfile||I(5),this.p||I(4),this.c>0){var i=Math.min(this.c,t.length),o=t.subarray(0,i);if(this.c-=i,this.d?this.d.push(o,!this.c):this.k[0].push(o),(t=t.subarray(i)).length)return this.push(t,r)}else{var s=0,a=0,u=void 0,h=void 0;this.p.length?t.length?((h=new n(this.p.length+t.length)).set(this.p),h.set(t,this.p.length)):h=this.p:h=t;for(var f=h.length,l=this.c,c=l&&this.d,p=function(){var t,n=ft(h,a);if(67324752==n){s=1,u=a,v.d=null,v.c=0;var r=ht(h,a+6),i=ht(h,a+8),o=2048&r,c=8&r,p=ht(h,a+26),d=ht(h,a+28);if(f>a+30+p+d){var g=[];v.k.unshift(g),s=2;var y,m=ft(h,a+18),b=ft(h,a+22),w=rn(h.subarray(a+30,a+=30+p),!o);4294967295==m?(t=c?[-2]:an(h,a),m=t[0],b=t[1]):c&&(m=-1),a+=d,v.c=m;var x={name:w,compression:i,start:function(){if(x.ondata||I(5),m){var t=e.o[i];t||x.ondata(I(14,"unknown compression type "+i,1),null,!1),(y=m<0?new t(w):new t(w,m,b)).ondata=function(t,n,r){x.ondata(t,n,r)};for(var n=0,r=g;n<r.length;n++)y.push(r[n],!1);e.k[0]==g&&e.c?e.d=y:y.push(N,!0)}else x.ondata(null,N,!0)},terminate:function(){y&&y.terminate&&y.terminate()}};m>=0&&(x.size=m,x.originalSize=b),v.onfile(x)}return"break"}if(l){if(134695760==n)return u=a+=12+(-2==l&&8),s=3,v.c=0,"break";if(33639248==n)return u=a-=4,s=3,v.c=0,"break"}},v=this;a<f-4&&"break"!==p();++a);if(this.p=N,l<0){var d=h.subarray(0,s?u-12-(-2==l&&8)-(134695760==ft(h,u-16)&&4):a);c?c.push(d,!!s):this.k[+(2==s)].push(d)}if(2&s)return this.push(h.subarray(a),r);this.p=h.subarray(a)}r&&(this.c&&I(13),this.p=null)},t.prototype.register=function(t){this.o[t.compression]=t},t}();_e.Unzip=wn;var xn="function"==typeof queueMicrotask?queueMicrotask:"function"==typeof setTimeout?setTimeout:function(t){t()};function zn(t,r,e){e||(e=r,r={}),"function"!=typeof e&&I(7);var i=[],o=function(){for(var t=0;t<i.length;++t)i[t]()},s={},a=function(t,n){xn((function(){e(t,n)}))};xn((function(){a=e}));for(var u=t.length-22;101010256!=ft(t,u);--u)if(!u||t.length-u>65558)return a(I(13,0,1),null),o;var h=ht(t,u+8);if(h){var f=h,l=ft(t,u+16),c=4294967295==l||65535==f;if(c){var p=ft(t,u-12);(c=101075792==ft(t,p))&&(f=h=ft(t,p+32),l=ft(t,p+48))}for(var v=r&&r.filter,d=function(r){var e=sn(t,l,c),u=e[0],f=e[1],p=e[2],d=e[3],g=e[4],y=on(t,e[5]);l=g;var m=function(t,n){t?(o(),a(t,null)):(n&&(s[d]=n),--h||a(null,s))};if(!v||v({name:d,size:f,originalSize:p,compression:u}))if(u)if(8==u){var b=t.subarray(y,y+f);if(p<524288||f>.8*p)try{m(null,Tt(b,{out:new n(p)}))}catch(t){m(t,null)}else i.push(At(b,{size:p},m))}else m(I(14,"unknown compression type "+u,1),null);else m(null,D(t,y,y+f));else m(null,null)},g=0;g<f;++g)d()}else a(null,{});return o}function kn(t,r){for(var e={},i=t.length-22;101010256!=ft(t,i);--i)(!i||t.length-i>65558)&&I(13);var o=ht(t,i+8);if(!o)return{};var s=ft(t,i+16),a=4294967295==s||65535==o;if(a){var u=ft(t,i-12);(a=101075792==ft(t,u))&&(o=ft(t,u+32),s=ft(t,u+48))}for(var h=r&&r.filter,f=0;f<o;++f){var l=sn(t,s,a),c=l[0],p=l[1],v=l[2],d=l[3],g=l[4],y=on(t,l[5]);s=g,h&&!h({name:d,size:p,originalSize:v,compression:c})||(c?8==c?e[d]=Tt(t.subarray(y,y+p),{out:new n(v)}):I(14,"unknown compression type "+c):e[d]=D(t,y,y+p))}return e}_e.unzip=zn,_e.unzipSync=kn;return _e});</script>
+<script>/* Minimal .xlsx writer/reader built on fflate (offline, no CDN). */
+(function (g) {
+  'use strict';
+  var NS_MAIN = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+  var NS_REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  var enc = function (s) { return fflate.strToU8(s); };
+
+  function esc(v) {
+    return String(v)
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function colName(i) {
+    var s = '';
+    i += 1;
+    while (i > 0) { var m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); }
+    return s;
+  }
+  function colIndex(letters) {
+    var n = 0;
+    for (var i = 0; i < letters.length; i++) n = n * 26 + (letters.charCodeAt(i) - 64);
+    return n - 1;
+  }
+  function sheetXml(sh) {
+    var rows = sh.rows || [];
+    var ncol = rows.reduce(function (m, r) { return Math.max(m, r.length); }, 1);
+    var cols = sh.widths ? '<cols>' + sh.widths.map(function (w, i) {
+      return '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>';
+    }).join('') + '</cols>' : '';
+    var body = '';
+    rows.forEach(function (row, r) {
+      var cells = '';
+      row.forEach(function (v, c) {
+        if (v === null || v === undefined || v === '') return;
+        var ref = colName(c) + (r + 1);
+        var st = r === 0 ? ' s="1"' : '';
+        if (typeof v === 'number' && isFinite(v)) cells += '<c r="' + ref + '"' + st + '><v>' + v + '</v></c>';
+        else cells += '<c r="' + ref + '" t="inlineStr"' + st + '><is><t xml:space="preserve">' + esc(v) + '</t></is></c>';
+      });
+      body += '<row r="' + (r + 1) + '">' + cells + '</row>';
+    });
+    var last = colName(ncol - 1) + Math.max(1, rows.length);
+    var view = '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>';
+    var af = rows.length > 1 ? '<autoFilter ref="A1:' + last + '"/>' : '';
+    return { xml: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<worksheet xmlns="' + NS_MAIN + '" xmlns:r="' + NS_REL + '">' + view +
+      '<sheetFormatPr defaultRowHeight="15"/>' + cols + '<sheetData>' + body + '</sheetData>' + af + '</worksheet>',
+      range: '$A$1:$' + last.replace(/(\d+)$/, '$$$1') };
+  }
+
+  /** sheets: [{name, widths:[..], rows:[[header..],[..]]}] -> Uint8Array */
+  function write(sheets) {
+    var files = {};
+    var ct = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+      '<Default Extension="xml" ContentType="application/xml"/>' +
+      '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+      '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>';
+    var wbSheets = '', wbRels = '', names = '';
+    sheets.forEach(function (sh, i) {
+      var n = i + 1;
+      var out = sheetXml(sh);
+      files['xl/worksheets/sheet' + n + '.xml'] = enc(out.xml);
+      ct += '<Override PartName="/xl/worksheets/sheet' + n + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>';
+      wbSheets += '<sheet name="' + esc(sh.name) + '" sheetId="' + n + '" r:id="rId' + n + '"/>';
+      wbRels += '<Relationship Id="rId' + n + '" Type="' + NS_REL + '/worksheet" Target="worksheets/sheet' + n + '.xml"/>';
+      if ((sh.rows || []).length > 1) {
+        names += '<definedName name="_xlnm._FilterDatabase" localSheetId="' + i + '" hidden="1">\'' +
+          esc(sh.name).replace(/'/g, "''") + '\'!' + out.range + '</definedName>';
+      }
+    });
+    ct += '</Types>';
+    files['[Content_Types].xml'] = enc(ct);
+    files['_rels/.rels'] = enc('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="' + NS_REL + '/officeDocument" Target="xl/workbook.xml"/></Relationships>');
+    files['xl/workbook.xml'] = enc('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<workbook xmlns="' + NS_MAIN + '" xmlns:r="' + NS_REL + '"><sheets>' + wbSheets + '</sheets>' +
+      (names ? '<definedNames>' + names + '</definedNames>' : '') + '</workbook>');
+    files['xl/_rels/workbook.xml.rels'] = enc('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' + wbRels +
+      '<Relationship Id="rIdS" Type="' + NS_REL + '/styles" Target="styles.xml"/></Relationships>');
+    files['xl/styles.xml'] = enc('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<styleSheet xmlns="' + NS_MAIN + '">' +
+      '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font>' +
+      '<font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts>' +
+      '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>' +
+      '<fill><patternFill patternType="solid"><fgColor rgb="FF24465C"/><bgColor indexed="64"/></patternFill></fill></fills>' +
+      '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
+      '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+      '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+      '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/></cellXfs>' +
+      '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>');
+    return fflate.zipSync(files, { level: 6 });
+  }
+
+  /** Uint8Array -> { names:[..], rows(name) -> [[..]] } */
+  function read(u8) {
+    var files = fflate.unzipSync(u8);
+    var txt = function (p) { return files[p] ? fflate.strFromU8(files[p]) : null; };
+    var parse = function (s) { return new DOMParser().parseFromString(s, 'application/xml'); };
+    var tags = function (node, t) { return Array.prototype.slice.call(node.getElementsByTagNameNS('*', t)); };
+    var wbx = txt('xl/workbook.xml');
+    if (!wbx) throw new Error('This file is not an Excel workbook (.xlsx).');
+    var wb = parse(wbx);
+    var relMap = {};
+    var relx = txt('xl/_rels/workbook.xml.rels');
+    if (relx) tags(parse(relx), 'Relationship').forEach(function (r) { relMap[r.getAttribute('Id')] = r.getAttribute('Target'); });
+    var sheets = tags(wb, 'sheet').map(function (s) {
+      var rid = s.getAttributeNS(NS_REL, 'id') || s.getAttribute('r:id');
+      var target = relMap[rid] || '';
+      var path = target.charAt(0) === '/' ? target.slice(1) : 'xl/' + target.replace(/^\.\//, '');
+      return { name: s.getAttribute('name'), path: path };
+    });
+    var shared = [];
+    var sst = txt('xl/sharedStrings.xml');
+    if (sst) {
+      tags(parse(sst), 'si').forEach(function (si) {
+        shared.push(tags(si, 't').filter(function (t) { return t.parentNode.localName !== 'rPh'; })
+          .map(function (t) { return t.textContent; }).join(''));
+      });
+    }
+    function rows(name) {
+      var sh = sheets.filter(function (s) { return s.name === name; })[0] || sheets[0];
+      var x = sh && txt(sh.path);
+      if (!x) return [];
+      var out = [];
+      tags(parse(x), 'row').forEach(function (rowEl, ri) {
+        var rn = parseInt(rowEl.getAttribute('r'), 10) || (ri + 1);
+        var row = [];
+        var ci = 0;
+        tags(rowEl, 'c').forEach(function (c) {
+          var ref = c.getAttribute('r');
+          if (ref) ci = colIndex(ref.replace(/\d+/g, ''));
+          var t = c.getAttribute('t');
+          var vEl = tags(c, 'v')[0];
+          var v = vEl ? vEl.textContent : null;
+          var val;
+          if (t === 's') val = shared[parseInt(v, 10)];
+          else if (t === 'inlineStr') val = tags(c, 't').map(function (n) { return n.textContent; }).join('');
+          else if (t === 'b') val = v === '1';
+          else if (t === 'str' || t === 'e') val = v;
+          else val = v === null || v === '' ? null : (isNaN(Number(v)) ? v : Number(v));
+          row[ci] = val;
+          ci += 1;
+        });
+        out[rn - 1] = row;
+      });
+      for (var i = 0; i < out.length; i++) if (!out[i]) out[i] = [];
+      return out;
+    }
+    return { names: sheets.map(function (s) { return s.name; }), rows: rows };
+  }
+
+  g.XLSXLite = { write: write, read: read };
+})(window);
+</script>
+<script>/* SMT Compactor Listing — Google Sheets edition (standalone HTML file or Apps Script web app). */
+(function () {
+  'use strict';
+
+  var CFG_KEY = 'smtc-sheets-cfg';
+  var CACHE_KEY = 'smtc-sheets-cache';
+  var VERSION = '2.0 (Google Sheets)';
+  var STATUSES = ['Available', 'Low stock', 'Out of stock', 'On order', 'Not counted'];
+  var PICKABLE = ['Available', 'Low stock', 'Out of stock', 'On order'];
+  var SCLS = { 'Available': 'ok', 'Low stock': 'low', 'Out of stock': 'out', 'On order': 'order', 'Not counted': 'nc' };
+  var COMPS = ['i', 'ii', 'iii', 'iv'];
+  var LEVELS = ['A', 'B', 'C', 'D', 'E'];
+  var UNITS = ['Pcs', 'Set', 'Pair', 'Roll', 'Pack', 'Box', 'Meter'];
+  var Bridge = window.AndroidBridge || null;
+  var HOSTED = !!(window.google && window.google.script && window.google.script.run);
+
+  /* ================= icons ================= */
+  var I = {
+    search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>',
+    racks: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="5" height="16" rx="1"/><rect x="9.5" y="3" width="5" height="16" rx="1"/><rect x="16" y="3" width="5" height="16" rx="1"/><path d="M2 21.5h20"/></svg>',
+    add: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="2"/><path d="M12 8v8M8 12h8"/></svg>',
+    records: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="5" y="4" width="14" height="17" rx="1.5"/><path d="M9 4V2.8h6V4M8.5 10h7M8.5 14h7M8.5 18h4"/></svg>',
+    back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
+    prev: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6l-6 6 6 6"/></svg>',
+    next: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6l6 6-6 6"/></svg>',
+    close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+    pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></svg>',
+    wheel: '<svg class="wheel" viewBox="0 0 40 40" fill="none" stroke="currentColor"><circle cx="20" cy="20" r="15" stroke-width="3"/><circle cx="20" cy="20" r="3.5" fill="currentColor" stroke="none"/><path d="M20 20V5.5M20 20l12.6 7.2M20 20L7.4 27.2" stroke-width="2.4"/><circle cx="20" cy="5.5" r="2.6" fill="currentColor" stroke="none"/></svg>',
+    excel: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M9 12l4 5M13 12l-4 5"/></svg>',
+    share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="M8.2 10.8l7.6-4.1M8.2 13.2l7.6 4.1"/></svg>',
+    sync: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3.5V8h4.5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 20.5V16h-4.5"/></svg>',
+    link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/></svg>',
+    upload: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M7.5 8.5L12 4l4.5 4.5M5 15v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4"/></svg>'
+  };
+
+  /* ================= helpers ================= */
+  function $(s, el) { return (el || document).querySelector(s); }
+  function $$(s, el) { return Array.prototype.slice.call((el || document).querySelectorAll(s)); }
+  function esc(s) {
+    return String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function norm(s) { return String(s || '').toLowerCase(); }
+  function compact(s) { return norm(s).replace(/[^a-z0-9]/g, ''); }
+  function boxKey(b) { return b ? String(b) : '0'; }
+  function locCode(p) { return p.rack + p.level + (p.box ? '-' + p.box : '') + (p.comp ? ' (' + p.comp + ')' : ''); }
+  function locWords(p) {
+    return 'Rack ' + p.rack + ', level ' + p.level + (p.box ? ', box ' + p.box : '') + (p.comp ? ', compartment ' + p.comp : '');
+  }
+  function tape(text, cls) { return '<span class="tape ' + (cls || '') + '">' + esc(text) + '</span>'; }
+  function stBadge(s) { return '<span class="st st-' + SCLS[s] + '">' + esc(s) + '</span>'; }
+  function qtyHtml(p) {
+    if (p.qty === null || p.qty === undefined || p.qty === '') return '<span class="qty none">—</span>';
+    return '<span class="qty">' + esc(p.qty) + '<small>' + esc(p.unit || 'Pcs') + '</small></span>';
+  }
+  function plural(n, w) { return n + ' ' + w + (n === 1 ? '' : 's'); }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function fmtTime(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    var m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()];
+    return d.getDate() + ' ' + m + ' ' + d.getFullYear() + ', ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+  function stamp() {
+    var d = new Date();
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '_' + pad(d.getHours()) + pad(d.getMinutes());
+  }
+  function newId() { return 'N' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase(); }
+  function numOrNull(v) {
+    if (v === null || v === undefined) return null;
+    var s = String(v).trim();
+    if (s === '') return null;
+    var n = Number(s);
+    return isFinite(n) ? Math.max(0, Math.round(n * 100) / 100) : null;
+  }
+  function suggestStatus(qty, min, current) {
+    if (qty === null) return current === 'On order' ? 'On order' : (current === 'Not counted' || !current ? 'Not counted' : current);
+    if (qty <= 0) return current === 'On order' ? 'On order' : 'Out of stock';
+    if (min !== null && min !== undefined && qty <= min) return 'Low stock';
+    return 'Available';
+  }
+  function hl(text, tokens) {
+    var out = esc(text);
+    if (!tokens || !tokens.length) return out;
+    tokens.forEach(function (t) {
+      if (t.length < 2) return;
+      var re = new RegExp('(' + esc(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'ig');
+      out = out.replace(/(<[^>]*>)|([^<]+)/g, function (m, tag, txt) { return tag ? tag : txt.replace(re, '<mark>$1</mark>'); });
+    });
+    return out;
+  }
+
+  /* ================= state, connection & sync ================= */
+  var S = {
+    parts: [], layout: {}, log: [],
+    settings: { name: '', levelOrder: 'top' },
+    conn: { url: '', key: '' },
+    sync: { at: null, ok: false, busy: 0, error: '', sheetUrl: '', sheetName: '', invalid: 0 }
+  };
+  function lsGet(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage blocked or full */ } }
+  function saveCfg() { lsSet(CFG_KEY, { settings: S.settings, conn: S.conn }); }
+  function saveCache() {
+    lsSet(CACHE_KEY, { parts: S.parts, layout: S.layout, log: S.log.slice(0, 300), at: S.sync.at, sheetUrl: S.sync.sheetUrl, sheetName: S.sync.sheetName });
+  }
+  function connected() { return !!(S.conn.key && (HOSTED || S.conn.url)); }
+  function byId(id) { for (var i = 0; i < S.parts.length; i++) if (S.parts[i].id === id) return S.parts[i]; return null; }
+  function ensureLayout(p) {
+    var r = S.layout[p.rack] = S.layout[p.rack] || {};
+    var l = r[p.level] = r[p.level] || {};
+    var k = boxKey(p.box);
+    var c = l[k] = l[k] || [];
+    if (p.comp && c.indexOf(p.comp) < 0) { c.push(p.comp); c.sort(function (a, b) { return COMPS.indexOf(a) - COMPS.indexOf(b); }); }
+  }
+  function layoutFrom(rows) {
+    var L = {};
+    rows.forEach(function (r) {
+      var lv = (L[r.rack] = L[r.rack] || {});
+      var bx = (lv[r.level] = lv[r.level] || {});
+      var k = boxKey(r.box);
+      var list = bx[k] = bx[k] || [];
+      (r.comps || []).forEach(function (c) { if (list.indexOf(c) < 0) list.push(c); });
+      list.sort(function (a, b) { return COMPS.indexOf(a) - COMPS.indexOf(b); });
+    });
+    return L;
+  }
+  function applyPart(p) {
+    for (var i = 0; i < S.parts.length; i++) if (S.parts[i].id === p.id) { S.parts[i] = p; ensureLayout(p); return; }
+    S.parts.push(p);
+    ensureLayout(p);
+  }
+  function addLogs(list) { if (list && list.length) S.log = list.concat(S.log).slice(0, 500); }
+
+  function busyBar() { document.body.classList.toggle('busy', S.sync.busy > 0); }
+
+  /** One request to the Apps Script backend. Resolves with the reply, rejects with {error, conflict?, auth?, network?}. */
+  function call(action, payload) {
+    var req = Object.assign({ action: action, key: S.conn.key, by: S.settings.name || '' }, payload || {});
+    S.sync.busy++;
+    busyBar();
+    return new Promise(function (resolve, reject) {
+      var settled = false;
+      var finish = function (ok, res) {
+        if (settled) return;
+        settled = true;
+        S.sync.busy = Math.max(0, S.sync.busy - 1);
+        busyBar();
+        if (ok) resolve(res); else reject(res);
+      };
+      var reply = function (res) {
+        if (res && res.ok) finish(true, res);
+        else finish(false, res || { error: 'No reply from Google Sheets' });
+      };
+      var fail = function (msg) { finish(false, { error: msg, network: true }); };
+      if (HOSTED) {
+        window.google.script.run.withSuccessHandler(reply)
+          .withFailureHandler(function (e) { fail((e && e.message) || 'No connection to Google Sheets'); }).api(req);
+        return;
+      }
+      if (!S.conn.url) { fail('Not connected to a Google Sheet yet'); return; }
+      var ctrl = window.AbortController ? new AbortController() : null;
+      var timer = setTimeout(function () { if (ctrl) ctrl.abort(); fail('Google Sheets took too long to answer. Try again.'); }, 45000);
+      fetch(S.conn.url, {
+        method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(req), signal: ctrl ? ctrl.signal : undefined
+      }).then(function (r) { return r.text(); }).then(function (txt) {
+        clearTimeout(timer);
+        var res;
+        try { res = JSON.parse(txt); } catch (e) {
+          fail('That link did not answer like the SMT Compactor script. Check the Web App URL ends with /exec and access is set to "Anyone".');
+          return;
+        }
+        reply(res);
+      }).catch(function () {
+        clearTimeout(timer);
+        fail('No connection to Google Sheets. Check Wi-Fi or mobile data.');
+      });
+    });
+  }
+
+  function applyLoad(res) {
+    S.parts = res.parts || [];
+    S.layout = layoutFrom(res.layout || []);
+    S.parts.forEach(ensureLayout);
+    S.log = res.log || [];
+    S.sync.at = new Date().toISOString();
+    S.sync.ok = true;
+    S.sync.error = '';
+    S.sync.sheetUrl = res.sheetUrl || S.sync.sheetUrl;
+    S.sync.sheetName = res.sheetName || S.sync.sheetName;
+    S.sync.invalid = res.invalid || 0;
+    saveCache();
+  }
+  var syncing = null;
+  var lastSync = 0;
+  function sync(quiet) {
+    if (!connected()) return Promise.resolve(false);
+    if (syncing) return syncing;
+    lastSync = Date.now();
+    syncing = call('load').then(function (res) {
+      syncing = null;
+      applyLoad(res);
+      refresh();
+      if (!quiet) toast('Up to date with Google Sheets');
+      return true;
+    }, function (err) {
+      syncing = null;
+      S.sync.ok = false;
+      S.sync.error = err.error || 'Could not load from Google Sheets';
+      if (err.auth) {
+        S.conn.key = '';
+        saveCfg();
+        tab('connect');
+        toast('The access key has changed. Enter the new key.');
+        return false;
+      }
+      refresh();
+      if (!quiet) toast(S.sync.error);
+      return false;
+    });
+    return syncing;
+  }
+  function failMsg(err, what) {
+    if (err && err.network) return what + ' was not saved. ' + err.error;
+    return (err && err.error) || what + ' was not saved.';
+  }
+
+  function racksList() {
+    var set = {};
+    Object.keys(S.layout).forEach(function (r) { set[r] = 1; });
+    S.parts.forEach(function (p) { set[p.rack] = 1; });
+    return Object.keys(set).map(Number).sort(function (a, b) { return a - b; });
+  }
+  function levelsOf(rack) {
+    var set = {};
+    Object.keys(S.layout[rack] || {}).forEach(function (l) { set[l] = 1; });
+    S.parts.forEach(function (p) { if (p.rack === rack) set[p.level] = 1; });
+    var lv = Object.keys(set).sort();
+    return S.settings.levelOrder === 'bottom' ? lv.reverse() : lv;
+  }
+  function boxesOf(rack, level) {
+    var set = {};
+    Object.keys(((S.layout[rack] || {})[level]) || {}).forEach(function (b) { set[b] = 1; });
+    S.parts.forEach(function (p) { if (p.rack === rack && p.level === level) set[boxKey(p.box)] = 1; });
+    var keys = Object.keys(set).sort(function (a, b) { return a - b; });
+    if (keys.length > 1 && keys[0] === '0' && !S.parts.some(function (p) { return p.rack === rack && p.level === level && !p.box; })) keys.shift();
+    return keys;
+  }
+  function compsOf(rack, level, key) {
+    var c = ((((S.layout[rack] || {})[level]) || {})[key]) || [];
+    var set = {};
+    c.forEach(function (x) { set[x] = 1; });
+    S.parts.forEach(function (p) { if (p.rack === rack && p.level === level && boxKey(p.box) === key && p.comp) set[p.comp] = 1; });
+    return COMPS.filter(function (x) { return set[x]; });
+  }
+  function partsIn(rack, level, key) {
+    return S.parts.filter(function (p) { return p.rack === rack && p.level === level && boxKey(p.box) === key; });
+  }
+  function counts(list) {
+    var c = { total: list.length };
+    STATUSES.forEach(function (s) { c[s] = 0; });
+    list.forEach(function (p) { c[p.status] = (c[p.status] || 0) + 1; });
+    return c;
+  }
+
+  /* ================= native bridge / files ================= */
+  function toB64(u8) {
+    var s = '', CH = 0x8000;
+    for (var i = 0; i < u8.length; i += CH) s += String.fromCharCode.apply(null, u8.subarray(i, i + CH));
+    return btoa(s);
+  }
+  var XMIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  function saveBytes(name, u8, mime, share) {
+    if (Bridge) {
+      var res;
+      try { res = JSON.parse(share ? Bridge.shareFile(name, toB64(u8), mime) : Bridge.saveFile(name, toB64(u8), mime)); }
+      catch (e) { res = { ok: false, error: String(e) }; }
+      if (res.ok && share && res.shared === false) toast('Saved to ' + res.where + '. Sending files needs Android 10 or newer.');
+      else if (res.ok) toast(share ? 'Saved to ' + res.where + '. Choose an app to send it.' : 'Saved to ' + res.where);
+      else toast('Could not save the file. ' + (res.error || ''));
+      return;
+    }
+    var blob = new Blob([u8], { type: mime });
+    if (share && navigator.canShare) {
+      try {
+        var f = new File([blob], name, { type: mime });
+        if (navigator.canShare({ files: [f] })) { navigator.share({ files: [f], title: name }).catch(function () {}); return; }
+      } catch (e) { /* fall back to download */ }
+    }
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+    toast('Downloaded ' + name);
+  }
+  function shareText(text) {
+    if (Bridge) { try { Bridge.shareText(text); return; } catch (e) { /* fall through */ } }
+    if (navigator.share) { navigator.share({ text: text }).catch(function () {}); return; }
+    copyText(text, 'Restock list copied. Paste it into WhatsApp or email.');
+  }
+  function copyText(text, msg) {
+    var done = function () { toast(msg || 'Copied'); };
+    if (Bridge && Bridge.copyText) { try { Bridge.copyText(text); done(); return; } catch (e) { /* fall through */ } }
+    if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).then(done, function () { legacyCopy(text); done(); }); }
+    else { legacyCopy(text); done(); }
+  }
+  function legacyCopy(text) {
+    var t = document.createElement('textarea');
+    t.value = text; document.body.appendChild(t); t.select();
+    try { document.execCommand('copy'); } catch (e) { /* ignore */ }
+    t.remove();
+  }
+
+  /* ================= navigation ================= */
+  var view = null;
+  var nav = { stack: [], cur: { name: 'racks', params: {} } };
+  var sheets = [];
+  function go(name, params, opts) {
+    opts = opts || {};
+    if (!opts.replace) nav.stack.push(nav.cur);
+    nav.cur = { name: name, params: params || {} };
+    render(opts);
+  }
+  function tab(name) {
+    closeAllSheets();
+    nav.stack = [];
+    nav.cur = { name: name, params: {} };
+    render({});
+  }
+  function back() {
+    if ($('.dialog-wrap')) { closeDialog(); return true; }
+    if (sheets.length) { closeSheet(); return true; }
+    if (nav.stack.length) { nav.cur = nav.stack.pop(); render({ back: true }); return true; }
+    if (nav.cur.name !== 'racks') { tab('racks'); return true; }
+    return false;
+  }
+  window.appBack = back;
+  window.addEventListener('keydown', function (e) { if (e.key === 'Escape') back(); });
+
+  function render(opts) {
+    opts = opts || {};
+    if (nav.cur.name !== 'connect' && !connected()) nav.cur = { name: 'connect', params: {} };
+    document.body.classList.toggle('connect-mode', nav.cur.name === 'connect' && !connected());
+    var v = VIEWS[nav.cur.name];
+    view.innerHTML = v.html(nav.cur.params);
+    view.classList.remove('view-enter');
+    if (nav.cur.name === 'rack' && !opts.back && !opts.keepScroll) { void view.offsetWidth; view.classList.add('view-enter'); }
+    if (!opts.keepScroll) window.scrollTo(0, 0);
+    if (v.mount) v.mount(nav.cur.params, opts);
+    var active = nav.cur.name === 'rack' ? 'racks' : nav.cur.name;
+    $$('.tabbar button').forEach(function (b) {
+      if (b.dataset.tab === active) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    });
+  }
+  function refresh() {
+    var y = window.scrollY;
+    var typing = document.activeElement && view.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
+    if (nav.cur.name === 'search') VIEWS.search.update();
+    else if (nav.cur.name !== 'add' && nav.cur.name !== 'connect' && !typing) { render({ keepScroll: true }); window.scrollTo(0, y); }
+    sheets.forEach(function (s) { if (s.refresh) s.refresh(); });
+  }
+
+  /* ================= sheets / dialogs / toast ================= */
+  function openSheet(def) {
+    var wrap = document.createElement('div');
+    wrap.className = 'sheet-wrap';
+    wrap.innerHTML = '<div class="sheet-back" data-act="close-sheet"></div><div class="sheet" role="dialog" aria-modal="true"></div>';
+    document.body.appendChild(wrap);
+    var s = { el: wrap, panel: $('.sheet', wrap), def: def };
+    s.refresh = function () {
+      var body = $('.sheet-body', s.panel);
+      var y = body ? body.scrollTop : 0;
+      s.panel.innerHTML = def.html();
+      var nb = $('.sheet-body', s.panel);
+      if (nb) nb.scrollTop = y;
+      if (def.mount) def.mount(s.panel, s);
+    };
+    sheets.push(s);
+    s.panel.innerHTML = def.html();
+    if (def.mount) def.mount(s.panel, s, true);
+    document.body.style.overflow = 'hidden';
+    return s;
+  }
+  function closeSheet() {
+    var s = sheets.pop();
+    if (s) { if (s.def.onClose) s.def.onClose(); s.el.remove(); }
+    if (!sheets.length) document.body.style.overflow = '';
+  }
+  function closeAllSheets() { while (sheets.length) closeSheet(); }
+
+  var dialogResolve = null;
+  function dialog(title, bodyHtml, actions) {
+    closeDialog();
+    var wrap = document.createElement('div');
+    wrap.className = 'dialog-wrap';
+    wrap.innerHTML = '<div class="sheet-back" data-act="dlg" data-i="-1"></div><div class="dialog" role="alertdialog" aria-modal="true">' +
+      '<h3>' + esc(title) + '</h3>' + bodyHtml + '<div class="row-btns">' +
+      actions.map(function (a, i) { return '<button class="btn ' + (a.cls || 'ghost') + '" data-act="dlg" data-i="' + i + '">' + esc(a.label) + '</button>'; }).join('') +
+      '</div></div>';
+    document.body.appendChild(wrap);
+    dialogResolve = function (i) { closeDialog(); if (i >= 0 && actions[i].fn) actions[i].fn(); };
+    var first = $('.dialog .btn', wrap);
+    if (first) first.focus();
+  }
+  function closeDialog() { var d = $('.dialog-wrap'); if (d) d.remove(); }
+
+  var toastTimer = null;
+  function toast(msg, action) {
+    var old = $('.toast');
+    if (old) old.remove();
+    var t = document.createElement('div');
+    t.className = 'toast';
+    t.setAttribute('role', 'status');
+    t.innerHTML = '<span>' + esc(msg) + '</span>' + (action ? '<button data-act="toast-action">' + esc(action.label) + '</button>' : '');
+    document.body.appendChild(t);
+    t._fn = action && action.fn;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.remove(); }, action ? 6000 : 3200);
+  }
+
+  /* ================= views ================= */
+  var VIEWS = {};
+
+  /* ---- Racks (home) ---- */
+  VIEWS.racks = {
+    html: function () {
+      var c = counts(S.parts);
+      var racks = racksList();
+      var alerts = '';
+      if (c['Out of stock']) alerts += '<button class="alert-chip" data-act="filter-go" data-s="Out of stock"><span class="st st-out"></span><b>' + c['Out of stock'] + '</b> out of stock</button>';
+      if (c['Low stock']) alerts += '<button class="alert-chip" data-act="filter-go" data-s="Low stock"><span class="st st-low"></span><b>' + c['Low stock'] + '</b> low stock</button>';
+      if (c['On order']) alerts += '<button class="alert-chip" data-act="filter-go" data-s="On order"><span class="st st-order"></span><b>' + c['On order'] + '</b> on order</button>';
+      var panels = racks.map(function (r) {
+        var list = S.parts.filter(function (p) { return p.rack === r; });
+        var levels = levelsOf(r);
+        var anyOut = list.some(function (p) { return p.status === 'Out of stock'; });
+        var anyLow = !anyOut && list.some(function (p) { return p.status === 'Low stock'; });
+        var shelves = levels.map(function (l) {
+          var lp = list.filter(function (p) { return p.level === l; });
+          var o = lp.some(function (p) { return p.status === 'Out of stock'; });
+          var lo = !o && lp.some(function (p) { return p.status === 'Low stock'; });
+          return '<div class="shelf"><span>' + l + '</span>' + (o ? '<i class="out"></i>' : lo ? '<i class="low"></i>' : '') + '</div>';
+        }).join('');
+        return '<button class="endpanel" data-act="rack" data-rack="' + r + '" aria-label="Rack ' + r + ', ' + plural(list.length, 'part') + '">' +
+          (anyOut ? '<span class="flag out"></span>' : anyLow ? '<span class="flag low"></span>' : '') +
+          '<span class="plate">' + r + '</span>' + I.wheel +
+          '<span class="shelves">' + shelves + '</span><span class="count">' + plural(list.length, 'part') + '</span></button>';
+      }).join('');
+      var syncTxt = S.sync.busy ? 'Syncing…' : S.sync.ok ? 'Synced ' + (S.sync.at ? fmtTime(S.sync.at).split(', ')[1] : '') : 'Not synced';
+      var banner = !S.sync.ok && S.sync.error ? '<div class="banner" role="status"><span>' + esc(S.sync.error) + (S.sync.at ? ' Showing the list from ' + esc(fmtTime(S.sync.at)) + '. Changes cannot be saved until it reconnects.' : '') + '</span><button data-act="sync">Retry</button></div>' : '';
+      if (!S.parts.length && !S.sync.at) {
+        return '<header class="topbar"><div class="topbar-row"><h1>SMT Compactor</h1></div></header>' + banner +
+          '<div class="wrap"><div class="empty-state"><p>' + (S.sync.error ? 'The parts list could not be loaded.' : 'Loading the parts list from Google Sheets…') + '</p></div></div>';
+      }
+      return '<header class="topbar"><div class="topbar-row"><h1>SMT Compactor</h1><button class="syncbtn" data-act="sync" aria-label="Sync with Google Sheets">' + I.sync + '<span>' + esc(syncTxt) + '</span></button></div>' +
+        '<button class="searchbox" data-act="tab" data-tab="search">' + I.search + '<span class="ph">Search ' + plural(S.parts.length, 'part') + '</span></button></header>' + banner +
+        '<div class="wrap">' + (alerts ? '<div class="alerts">' + alerts + '</div>' : '') +
+        '<h2 class="section-title">Tap a rack to open it</h2><div class="racks">' + panels + '</div>' +
+        '<div class="legend"><span class="st st-out">Has out-of-stock parts</span><span class="st st-low">Has low-stock parts</span></div></div>';
+    }
+  };
+
+  /* ---- Rack ---- */
+  VIEWS.rack = {
+    html: function (pr) {
+      var r = pr.rack;
+      var racks = racksList();
+      var i = racks.indexOf(r);
+      var prev = racks[i - 1], next = racks[i + 1];
+      var list = S.parts.filter(function (p) { return p.rack === r; });
+      var levels = levelsOf(r);
+      var rows = levels.map(function (l) {
+        var keys = boxesOf(r, l);
+        var bins = keys.map(function (k) {
+          var ps = partsIn(r, l, k);
+          var comps = compsOf(r, l, k);
+          var models = [];
+          ps.forEach(function (p) { if (p.model && models.indexOf(p.model) < 0) models.push(p.model); });
+          var c = counts(ps);
+          var flags = (c['Out of stock'] ? '<i class="out" title="Out of stock"></i>' : '') + (c['Low stock'] ? '<i class="low" title="Low stock"></i>' : '') + (c['On order'] ? '<i class="order" title="On order"></i>' : '');
+          var code = r + l + (k !== '0' ? '-' + k : '');
+          if (!ps.length) {
+            return '<button class="bin empty" data-act="box" data-rack="' + r + '" data-level="' + l + '" data-box="' + k + '" data-bin="' + l + '|' + k + '">' +
+              tape(code, 'small') + '<span>Empty</span></button>';
+          }
+          return '<button class="bin" data-act="box" data-rack="' + r + '" data-level="' + l + '" data-box="' + k + '" data-bin="' + l + '|' + k + '" aria-label="' + esc(code + ', ' + plural(ps.length, 'part')) + '">' +
+            tape(code, 'small') + '<span class="model">' + esc(models.slice(0, 2).join(' / ') || 'Parts') + '</span>' +
+            (comps.length ? '<span class="comps">' + comps.map(function (x) { return '<span>' + x + '</span>'; }).join('') + '</span>' : '') +
+            '<span class="n">' + plural(ps.length, 'part') + ' ' + flags + '</span></button>';
+        }).join('');
+        return '<div class="level"><span class="level-tag" aria-label="Level ' + l + '">' + l + '</span><div class="bins' + (keys.length >= 4 ? ' n4' : '') + '">' + bins + '</div></div>';
+      }).join('');
+      return '<header class="topbar"><div class="topbar-row">' +
+        '<button class="icon-btn" data-act="back" aria-label="Back">' + I.back + '</button>' +
+        '<div style="flex:1;min-width:0"><h1>Rack ' + r + '</h1><p class="sub">' + plural(levels.length, 'level') + ', ' + plural(list.length, 'part') + '</p></div>' +
+        '<div class="rack-nav">' +
+        (prev ? '<button class="icon-btn" data-act="rack-step" data-rack="' + prev + '" aria-label="Rack ' + prev + '">' + I.prev + '</button>' : '') +
+        (next ? '<button class="icon-btn" data-act="rack-step" data-rack="' + next + '" aria-label="Rack ' + next + '">' + I.next + '</button>' : '') +
+        '</div></div></header>' +
+        '<div class="wrap rack-wrap"><div class="cabinet">' + rows + '</div>' +
+        '<p class="hint">Tap a box to see its parts. Level ' + (S.settings.levelOrder === 'bottom' ? 'A is at the bottom' : 'A is at the top') + ' (change in Records).</p>' +
+        '<div class="rack-foot"><button class="btn ghost" data-act="add-here" data-rack="' + r + '">' + I.add + 'Add part to rack ' + r + '</button></div></div>';
+    },
+    mount: function (pr) {
+      if (!pr.hl) return;
+      var h = pr.hl;
+      delete pr.hl;
+      var el = $('[data-bin="' + h.level + '|' + boxKey(h.box) + '"]');
+      if (!el) return;
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      el.classList.add('pulse');
+      setTimeout(function () {
+        if (nav.cur.name === 'rack' && nav.cur.params.rack === h.rack) openBox(h.rack, h.level, boxKey(h.box), h.id);
+      }, 1150);
+    }
+  };
+
+  /* ---- Box sheet ---- */
+  function openBox(rack, level, key, hlId) {
+    var def = {
+      html: function () {
+        var ps = partsIn(rack, level, key);
+        var comps = compsOf(rack, level, key);
+        var code = rack + level + (key !== '0' ? '-' + key : '');
+        var models = [];
+        ps.forEach(function (p) { if (p.model && models.indexOf(p.model) < 0) models.push(p.model); });
+        var groups = [];
+        if (comps.length) {
+          comps.forEach(function (c) { groups.push({ h: 'Compartment ' + c, list: ps.filter(function (p) { return p.comp === c; }) }); });
+          var rest = ps.filter(function (p) { return !p.comp; });
+          if (rest.length) groups.push({ h: 'No compartment', list: rest });
+        } else groups.push({ h: null, list: ps });
+        var body = groups.map(function (g) {
+          return (g.h ? '<div class="group-h">' + esc(g.h) + '</div>' : '') +
+            (g.list.length ? g.list.map(function (p) { return itemRow(p, { hl: p.id === hlId }); }).join('') : '<div class="item"><span></span><span class="muted">Nothing listed here</span></div>');
+        }).join('');
+        return '<div class="sheet-head"><div class="t">' + tape(code, 'big') +
+          '<h2>' + esc(models.join(' / ') || 'Box ' + code) + '</h2><div class="meta">Rack ' + rack + ', level ' + level + (key !== '0' ? ', box ' + key : '') + ', ' + plural(ps.length, 'part') + '</div></div>' +
+          '<button class="icon-btn" data-act="close-sheet" aria-label="Close">' + I.close + '</button></div>' +
+          '<div class="sheet-body"><div class="list" style="border-top:0">' + body + '</div></div>' +
+          '<div class="sheet-foot"><button class="btn ghost" data-act="add-here" data-rack="' + rack + '" data-level="' + level + '" data-box="' + key + '">' + I.add + 'Add part here</button></div>';
+      },
+      mount: function (panel, s, first) {
+        if (first && hlId) {
+          var row = $('[data-id="' + hlId + '"]', panel);
+          if (row) setTimeout(function () { row.scrollIntoView({ block: 'center' }); }, 50);
+        }
+      }
+    };
+    return openSheet(def);
+  }
+
+  function itemRow(p, o) {
+    o = o || {};
+    var tokens = o.tokens;
+    return '<button class="item' + (o.hl ? ' hl' : '') + '" data-act="part" data-id="' + p.id + '">' +
+      '<span class="bar ' + SCLS[p.status] + '"></span>' +
+      '<span style="min-width:0">' + (o.showLoc ? '<span style="display:block;margin-bottom:4px">' + tape(locCode(p), 'small') + '</span>' : '') +
+      '<span class="desc">' + hl(p.desc, tokens) + '</span>' +
+      '<span class="sub">' + (p.pn ? '<span class="pn">' + hl(p.pn, tokens) + '</span>' : '<span>No part no.</span>') +
+      (o.showModel && p.model ? '<span>' + hl(p.model, tokens) + '</span>' : '') + '</span></span>' +
+      '<span class="right">' + qtyHtml(p) + '<span class="st st-' + SCLS[p.status] + '" style="font-size:12.5px">' + esc(p.status) + '</span>' +
+      (o.locate ? '<span class="locate-btn" data-act="locate" data-id="' + p.id + '" role="button" aria-label="Locate on rack">' + I.pin + 'Locate</span>' : '') +
+      '</span></button>';
+  }
+
+  /* ---- Part sheet ---- */
+  function openPart(id) {
+    var p = byId(id);
+    if (!p) return;
+    var d = { qty: p.qty, unit: p.unit || 'Pcs', min: p.min, status: p.status, remarks: p.remarks || '' };
+    function dirty() {
+      var q = byId(id);
+      return q && (d.qty !== q.qty || d.unit !== (q.unit || 'Pcs') || d.min !== q.min || d.status !== q.status || d.remarks !== (q.remarks || ''));
+    }
+    var def = {
+      html: function () {
+        var q = byId(id);
+        if (!q) return '<div class="sheet-body pad"><p>This part was deleted.</p></div>';
+        return '<div class="sheet-head"><div class="t"><button data-act="locate" data-id="' + q.id + '" aria-label="Show on rack">' + tape(locCode(q), 'big') + '</button>' +
+          '<div class="meta">' + esc(locWords(q)) + '</div></div>' +
+          '<button class="icon-btn" data-act="close-sheet" aria-label="Close">' + I.close + '</button></div>' +
+          '<div class="sheet-body pad">' +
+          '<h2 class="part-title">' + esc(q.desc) + '</h2>' +
+          '<div class="pn-line">' + (q.pn ? '<span class="pn">' + esc(q.pn) + '</span><button class="link" data-act="copy" data-text="' + esc(q.pn) + '">Copy</button>' : '<span class="muted">No part number recorded</span>') + '</div>' +
+          (q.model ? '<div class="muted" style="margin-top:4px">' + esc(q.model) + '</div>' : '') +
+          '<div class="block-gap"><span class="lbl">Quantity</span><div class="stepper">' +
+          '<button data-act="qty-step" data-d="-1" aria-label="Decrease quantity">−</button>' +
+          '<input id="ps-qty" type="number" inputmode="numeric" min="0" step="1" value="' + (d.qty === null ? '' : esc(d.qty)) + '" placeholder="—" aria-label="Quantity">' +
+          '<button data-act="qty-step" data-d="1" aria-label="Increase quantity">+</button>' +
+          '<select id="ps-unit" aria-label="Unit">' + UNITS.map(function (u) { return '<option' + (u === d.unit ? ' selected' : '') + '>' + u + '</option>'; }).join('') +
+          (UNITS.indexOf(d.unit) < 0 ? '<option selected>' + esc(d.unit) + '</option>' : '') + '</select></div>' +
+          '<p class="hint" id="ps-qhint">' + (d.qty === null ? 'Not counted yet. Count the box and enter the quantity.' : '') + '</p></div>' +
+          '<div class="block-gap"><span class="lbl">Availability</span><div class="seg" id="ps-seg">' +
+          PICKABLE.map(function (s) { return '<button class="st-' + SCLS[s] + '" data-act="status-pick" data-s="' + s + '" aria-pressed="' + (d.status === s) + '">' + s + '</button>'; }).join('') +
+          '</div></div>' +
+          '<div class="block-gap two"><label class="field"><span class="lbl">Reorder at <span class="opt">(optional)</span></span><input id="ps-min" type="number" inputmode="numeric" min="0" value="' + (d.min === null || d.min === undefined ? '' : esc(d.min)) + '" placeholder="e.g. 2"></label>' +
+          '<div class="field"><span class="lbl">Current</span><div style="min-height:48px;display:flex;align-items:center" id="ps-cur">' + stBadge(d.status) + '</div></div></div>' +
+          '<label class="field block-gap" style="display:block"><span class="lbl">Remarks</span><textarea id="ps-rem" rows="2" placeholder="e.g. 2 pcs borrowed by line 3">' + esc(d.remarks) + '</textarea></label>' +
+          '<div class="audit">' + (q.updated ? 'Last updated ' + esc(fmtTime(q.updated)) + (q.by ? ' by ' + esc(q.by) : '') : 'Not changed since the Excel listing') +
+          (q.src ? '<br>From Excel sheet ' + esc(q.src.split('!')[0].trim()) + ', row ' + esc(q.src.split('!')[1]) : '') + '</div>' +
+          '<div class="row-btns"><button class="btn ghost" data-act="edit-part" data-id="' + q.id + '">Edit details or move</button>' +
+          '<button class="btn ghost danger" data-act="delete-part" data-id="' + q.id + '">Delete part</button></div>' +
+          '</div><div class="sheet-foot"><button class="btn yellow" data-act="locate" data-id="' + q.id + '">' + I.pin + 'Locate</button>' +
+          '<button class="btn primary" id="ps-save" data-act="save-part" data-id="' + q.id + '"' + (dirty() ? '' : ' disabled') + '>Save changes</button></div>';
+      },
+      mount: function (panel) {
+        var qi = $('#ps-qty', panel), mi = $('#ps-min', panel), ri = $('#ps-rem', panel), ui = $('#ps-unit', panel);
+        if (!qi) return;
+        qi.addEventListener('input', function () { d.qty = numOrNull(qi.value); d.status = suggestStatus(d.qty, d.min, d.status); sync(panel); });
+        mi.addEventListener('input', function () { d.min = numOrNull(mi.value); d.status = suggestStatus(d.qty, d.min, d.status); sync(panel); });
+        ri.addEventListener('input', function () { d.remarks = ri.value; sync(panel); });
+        ui.addEventListener('change', function () { d.unit = ui.value; sync(panel); });
+      },
+      draft: d, dirty: dirty
+    };
+    function sync(panel) {
+      $$('#ps-seg button', panel).forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.s === d.status)); });
+      $('#ps-cur', panel).innerHTML = stBadge(d.status);
+      $('#ps-qhint', panel).textContent = d.qty === null ? 'Not counted yet. Count the box and enter the quantity.' : '';
+      $('#ps-save', panel).disabled = !dirty();
+    }
+    def.sync = sync;
+    return openSheet(def);
+  }
+  function topPartSheet() { var s = sheets[sheets.length - 1]; return s && s.def.draft ? s : null; }
+
+  function savePart(id) {
+    var s = topPartSheet();
+    var p = byId(id);
+    if (!s || !p) return;
+    var d = s.def.draft;
+    var btn = $('#ps-save', s.panel);
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+    var fields = { qty: d.qty, unit: d.unit, min: d.min, status: d.status, remarks: d.remarks };
+    call('update', { id: id, rev: p.rev, fields: fields }).then(function (res) {
+      applyPart(res.part);
+      addLogs(res.log);
+      saveCache();
+      var q = res.part;
+      d.qty = q.qty; d.unit = q.unit || 'Pcs'; d.min = q.min; d.status = q.status; d.remarks = q.remarks || '';
+      refresh();
+      toast(S.settings.name ? 'Saved to Google Sheet' : 'Saved. Add your name in Records to sign your changes.');
+    }, function (err) {
+      if (btn) { btn.textContent = 'Save changes'; btn.disabled = false; }
+      if (err.conflict && err.part) {
+        applyPart(err.part);
+        saveCache();
+        refresh();
+        var q = err.part;
+        dialog('Someone else changed this part',
+          '<p>' + esc(q.by || 'Someone') + ' updated it' + (q.updated ? ' at ' + esc(fmtTime(q.updated)) : '') + '. Now in the sheet: qty <b>' +
+          esc(q.qty === null ? 'not counted' : q.qty) + '</b>, ' + esc(q.status) + '.</p><p>Your change: qty <b>' +
+          esc(d.qty === null ? 'not counted' : d.qty) + '</b>, ' + esc(d.status) + '. It was not saved.</p>',
+          [{ label: 'Save mine instead', cls: 'primary', fn: function () { savePart(id); } },
+            { label: 'Keep theirs', fn: function () {
+              d.qty = q.qty; d.unit = q.unit || 'Pcs'; d.min = q.min; d.status = q.status; d.remarks = q.remarks || '';
+              refresh();
+            } }]);
+        return;
+      }
+      if (err.missing) { sync(true); closeSheet(); }
+      toast(failMsg(err, 'Change'));
+    });
+  }
+
+  /* ---- Search ---- */
+  var SQ = { q: '', status: '', rack: 0, limit: 120, all: false };
+  function runSearch() {
+    var tokens = norm(SQ.q).trim().split(/\s+/).filter(Boolean);
+    var cq = compact(SQ.q);
+    var out = [];
+    S.parts.forEach(function (p) {
+      if (SQ.status && p.status !== SQ.status) return;
+      if (SQ.rack && p.rack !== SQ.rack) return;
+      if (!tokens.length) { out.push({ p: p, s: 0 }); return; }
+      var pnc = compact(p.pn);
+      var score = 0;
+      if (pnc && cq && pnc === cq) score = 100;
+      else if (pnc && cq.length >= 3 && pnc.indexOf(cq) === 0) score = 70;
+      else if (pnc && cq.length >= 3 && pnc.indexOf(cq) >= 0) score = 55;
+      else {
+        var hay = norm(p.desc + ' ' + p.pn + ' ' + p.model + ' ' + p.remarks + ' ' + locCode(p));
+        if (tokens.every(function (t) { return hay.indexOf(t) >= 0; })) score = 30 + (norm(p.desc).indexOf(tokens[0]) === 0 ? 5 : 0);
+        else if (cq.length >= 4 && compact(p.desc + ' ' + p.pn).indexOf(cq) >= 0) score = 25;
+      }
+      if (score) out.push({ p: p, s: score });
+    });
+    out.sort(function (a, b) {
+      return b.s - a.s || a.p.rack - b.p.rack || a.p.level.localeCompare(b.p.level) || (a.p.box || 0) - (b.p.box || 0);
+    });
+    return { list: out.map(function (x) { return x.p; }), tokens: tokens };
+  }
+  VIEWS.search = {
+    html: function () {
+      var racks = racksList();
+      var chip = function (s, label) {
+        return '<button class="chip" data-act="filter" data-s="' + s + '" aria-pressed="' + (SQ.status === s) + '">' + (s ? '<span class="st st-' + SCLS[s] + '"></span>' : '') + label + '</button>';
+      };
+      return '<header class="topbar" style="padding-bottom:12px"><div class="topbar-row"><h1>Search parts</h1></div>' +
+        '<label class="searchbox">' + I.search + '<input id="q" type="search" enterkeyhint="search" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Part number, name or machine" value="' + esc(SQ.q) + '" aria-label="Search">' +
+        '<button class="clear" data-act="clear-q" aria-label="Clear search"' + (SQ.q ? '' : ' hidden') + '>' + I.close + '</button></label></header>' +
+        '<div class="chips" role="toolbar" aria-label="Filter by availability">' + chip('', 'All') + chip('Out of stock', 'Out of stock') + chip('Low stock', 'Low stock') + chip('On order', 'On order') + chip('Not counted', 'Not counted') + chip('Available', 'Available') +
+        '<label class="chip">Rack <select id="rackf" aria-label="Rack filter"><option value="0">All</option>' + racks.map(function (r) { return '<option value="' + r + '"' + (SQ.rack === r ? ' selected' : '') + '>' + r + '</option>'; }).join('') + '</select></label></div>' +
+        '<div id="results"></div>';
+    },
+    mount: function (pr) {
+      var q = $('#q');
+      var t = null;
+      q.addEventListener('input', function () {
+        SQ.q = q.value; SQ.limit = 120;
+        $('[data-act="clear-q"]').hidden = !SQ.q;
+        clearTimeout(t); t = setTimeout(VIEWS.search.update, 120);
+      });
+      q.addEventListener('keydown', function (e) { if (e.key === 'Enter') q.blur(); });
+      $('#rackf').addEventListener('change', function (e) { SQ.rack = Number(e.target.value); SQ.limit = 120; VIEWS.search.update(); });
+      VIEWS.search.update();
+      if (!pr.noFocus && !SQ.status) setTimeout(function () { q.focus(); }, 60);
+    },
+    update: function () {
+      var box = $('#results');
+      if (!box) return;
+      $$('.chips .chip[data-act="filter"]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.s === SQ.status)); });
+      var html = '';
+      var m = /^\s*(\d{1,2})\s*([a-e])\s*(?:-?\s*(\d))?\s*$/i.exec(SQ.q);
+      if (m && racksList().indexOf(Number(m[1])) >= 0) {
+        var r = Number(m[1]), l = m[2].toUpperCase(), b = m[3] || '';
+        html += '<button class="shortcut" data-act="goto-loc" data-rack="' + r + '" data-level="' + l + '" data-box="' + (b || '') + '">' + tape(r + l + (b ? '-' + b : ''), 'big') +
+          '<span>Open rack ' + r + ', level ' + l + (b ? ', box ' + b : '') + '</span></button>';
+      }
+      if (!SQ.q.trim() && !SQ.status && !SQ.rack && !SQ.all) {
+        box.innerHTML = html + '<div class="empty-state"><p>Type a part number, part name or machine, for example <b>N510051363AA</b>, <b>timing belt</b> or <b>Datacon</b>.</p><p>You can also type a location such as <b>7D-2</b>.</p></div>';
+        return;
+      }
+      var res = runSearch();
+      var list = res.list;
+      if (!list.length) {
+        box.innerHTML = html + '<div class="empty-state"><p>No parts match ' + (SQ.q.trim() ? '“' + esc(SQ.q.trim()) + '”' : 'this filter') + '. Check the spelling or try fewer words.</p>' +
+          (SQ.q.trim() ? '<button class="btn ghost" data-act="add-from-search">' + I.add + 'Add it as a new part</button>' : '') + '</div>';
+        return;
+      }
+      html += '<div class="result-meta">' + plural(list.length, 'part') + ' found</div><div class="list">' +
+        list.slice(0, SQ.limit).map(function (p) { return itemRow(p, { tokens: res.tokens, showLoc: true, showModel: true, locate: true }); }).join('') + '</div>';
+      if (list.length > SQ.limit) html += '<div class="wrap"><button class="btn ghost block" data-act="more">Show ' + Math.min(120, list.length - SQ.limit) + ' more</button></div>';
+      box.innerHTML = html;
+    }
+  };
+
+  /* ---- Add / edit ---- */
+  var F = null; // form draft
+  function blankForm(preset) {
+    preset = preset || {};
+    return { editId: null, rack: preset.rack || null, level: preset.level || null, box: preset.box ? Number(preset.box) : null,
+      comp: preset.comp || null, desc: preset.desc || '', pn: preset.pn || '', model: preset.model || '', qty: null, unit: 'Pcs', min: null,
+      status: 'Not counted', statusTouched: false, remarks: '', errors: {} };
+  }
+  VIEWS.add = {
+    html: function (pr) {
+      if (pr.editId && (!F || F.editId !== pr.editId)) {
+        var p = byId(pr.editId);
+        F = blankForm();
+        if (p) {
+          F.editId = p.id; F.rack = p.rack; F.level = p.level; F.box = p.box; F.comp = p.comp; F.desc = p.desc; F.pn = p.pn;
+          F.model = p.model; F.qty = p.qty; F.unit = p.unit || 'Pcs'; F.min = p.min; F.status = p.status; F.statusTouched = true; F.remarks = p.remarks;
+        }
+      } else if (pr.preset) { F = blankForm(pr.preset); delete pr.preset; }
+      else if (!F || (F.editId && !pr.editId)) F = blankForm();
+      var racks = racksList();
+      var maxRack = Math.max(12, racks[racks.length - 1] || 12);
+      var rackBtns = '';
+      for (var r = 1; r <= maxRack; r++) rackBtns += '<button type="button" data-act="pick" data-f="rack" data-v="' + r + '" aria-pressed="' + (F.rack === r) + '">' + r + '</button>';
+      var lvBtns = LEVELS.map(function (l) {
+        var has = F.rack && S.parts.some(function (p) { return p.rack === F.rack && p.level === l; });
+        return '<button type="button" data-act="pick" data-f="level" data-v="' + l + '" aria-pressed="' + (F.level === l) + '">' + l + (has ? '<span class="dot"></span>' : '') + '</button>';
+      }).join('');
+      var boxBtns = '<button type="button" class="wide" data-act="pick" data-f="box" data-v="0" aria-pressed="' + (!F.box) + '">No box</button>' +
+        [1, 2, 3, 4, 5].map(function (b) {
+          var has = F.rack && F.level && S.parts.some(function (p) { return p.rack === F.rack && p.level === F.level && p.box === b; });
+          return '<button type="button" data-act="pick" data-f="box" data-v="' + b + '" aria-pressed="' + (F.box === b) + '">' + b + (has ? '<span class="dot"></span>' : '') + '</button>';
+        }).join('');
+      var compBtns = '<button type="button" class="wide" data-act="pick" data-f="comp" data-v="" aria-pressed="' + (!F.comp) + '">None</button>' +
+        COMPS.map(function (c) { return '<button type="button" data-act="pick" data-f="comp" data-v="' + c + '" aria-pressed="' + (F.comp === c) + '">' + c + '</button>'; }).join('');
+      var models = {};
+      S.parts.forEach(function (p) { if (p.model) models[p.model] = 1; });
+      var e = F.errors;
+      var loc = F.rack && F.level ? { rack: F.rack, level: F.level, box: F.box, comp: F.comp } : null;
+      return '<header class="topbar"><div class="topbar-row">' + (F.editId ? '<button class="icon-btn" data-act="back" aria-label="Back">' + I.back + '</button>' : '') +
+        '<h1>' + (F.editId ? 'Edit part' : 'Add spare part') + '</h1></div></header>' +
+        '<form class="wrap form" id="addform" novalidate>' +
+        '<div><span class="lbl">Rack</span><div class="pick racks6">' + rackBtns + '</div>' + (e.rack ? '<div class="err-msg">Choose the rack</div>' : '') + '</div>' +
+        '<div><span class="lbl">Level</span><div class="pick five">' + lvBtns + '</div>' + (e.level ? '<div class="err-msg">Choose the level</div>' : '') + '</div>' +
+        '<div><span class="lbl">Box</span><div class="pick six">' + boxBtns + '</div></div>' +
+        '<div><span class="lbl">Compartment</span><div class="pick five">' + compBtns + '</div><p class="hint">A green dot means parts are already stored there.</p></div>' +
+        '<div class="loc-preview" id="locprev">' + (loc ? tape(locCode(loc), 'big') + '<span>' + esc(locWords(loc)) + '</span>' : '<span class="muted">Pick a rack and level to set the location</span>') + '</div>' +
+        '<label class="field' + (e.desc ? ' err' : '') + '"><span class="lbl">Part description</span><input id="f-desc" value="' + esc(F.desc) + '" placeholder="e.g. Timing belt 10AT3" autocomplete="off">' + (e.desc ? '<div class="err-msg">Enter what the part is</div>' : '') + '</label>' +
+        '<label class="field"><span class="lbl">Part number <span class="opt">(optional)</span></span><input id="f-pn" value="' + esc(F.pn) + '" placeholder="e.g. N510051363AA" autocapitalize="characters" autocomplete="off" spellcheck="false"><div id="pn-warn"></div></label>' +
+        '<label class="field"><span class="lbl">Machine / MC model <span class="opt">(optional)</span></span><input id="f-model" list="models" value="' + esc(F.model) + '" placeholder="e.g. MCM 12" autocomplete="off">' +
+        '<datalist id="models">' + Object.keys(models).sort().map(function (m) { return '<option value="' + esc(m) + '">'; }).join('') + '</datalist></label>' +
+        '<div class="two"><label class="field"><span class="lbl">Quantity</span><input id="f-qty" type="number" inputmode="numeric" min="0" value="' + (F.qty === null ? '' : esc(F.qty)) + '" placeholder="Not counted"></label>' +
+        '<label class="field"><span class="lbl">Unit</span><select id="f-unit">' + UNITS.map(function (u) { return '<option' + (u === F.unit ? ' selected' : '') + '>' + u + '</option>'; }).join('') + '</select></label></div>' +
+        '<label class="field"><span class="lbl">Reorder at <span class="opt">(optional)</span></span><input id="f-min" type="number" inputmode="numeric" min="0" value="' + (F.min === null ? '' : esc(F.min)) + '" placeholder="Mark as low stock at this quantity"></label>' +
+        '<div><span class="lbl">Availability</span><div class="seg" id="f-seg">' + PICKABLE.map(function (s) {
+          return '<button type="button" class="st-' + SCLS[s] + '" data-act="f-status" data-s="' + s + '" aria-pressed="' + (F.status === s) + '">' + s + '</button>';
+        }).join('') + '</div><p class="hint" id="f-sthint">' + (F.status === 'Not counted' ? 'Set automatically when you enter a quantity.' : '') + '</p></div>' +
+        '<label class="field"><span class="lbl">Remarks <span class="opt">(optional)</span></span><textarea id="f-rem" rows="2">' + esc(F.remarks) + '</textarea></label>' +
+        '<div class="row-btns"><button type="button" class="btn ghost" data-act="cancel-form">Cancel</button><button type="submit" class="btn primary" id="f-submit">' + (F.editId ? 'Save changes' : 'Save part') + '</button></div>' +
+        '</form>';
+    },
+    mount: function () {
+      var form = $('#addform');
+      var bind = function (id, key, fn) {
+        var el = $(id);
+        el.addEventListener('input', function () {
+          F[key] = fn ? fn(el.value) : el.value;
+          if (key === 'pn') pnWarn();
+          if (key === 'qty' || key === 'min') autoStatus();
+          if (key === 'desc' && F.errors.desc && el.value.trim()) {
+            F.errors.desc = 0;
+            var fld = el.closest('.field'); fld.classList.remove('err');
+            var m = $('.err-msg', fld); if (m) m.remove();
+          }
+        });
+        el.addEventListener('change', function () { F[key] = fn ? fn(el.value) : el.value; });
+      };
+      bind('#f-desc', 'desc'); bind('#f-pn', 'pn'); bind('#f-model', 'model'); bind('#f-qty', 'qty', numOrNull);
+      bind('#f-unit', 'unit'); bind('#f-min', 'min', numOrNull); bind('#f-rem', 'remarks');
+      form.addEventListener('submit', function (ev) { ev.preventDefault(); submitForm(); });
+      pnWarn();
+    }
+  };
+  function autoStatus() {
+    if (!F.statusTouched || F.status === 'Not counted') F.status = suggestStatus(F.qty, F.min, F.status === 'Not counted' ? null : F.status);
+    if (F.qty === null && !F.statusTouched) F.status = 'Not counted';
+    $$('#f-seg button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.s === F.status)); });
+    var h = $('#f-sthint');
+    if (h) h.textContent = F.status === 'Not counted' ? 'Set automatically when you enter a quantity.' : '';
+  }
+  function pnWarn() {
+    var box = $('#pn-warn');
+    if (!box) return;
+    var c = compact(F.pn);
+    if (c.length < 4) { box.innerHTML = ''; return; }
+    var dup = S.parts.filter(function (p) { return p.id !== F.editId && compact(p.pn) === c; });
+    box.innerHTML = dup.length ? '<div class="warn">This part number is already listed at ' + dup.slice(0, 3).map(function (p) {
+      return '<button type="button" data-act="part" data-id="' + p.id + '">' + esc(locCode(p)) + '</button>';
+    }).join(', ') + '. Save anyway if it is stored in more than one place.</div>' : '';
+  }
+  function submitForm() {
+    F.errors = {};
+    F.desc = F.desc.trim(); F.pn = F.pn.trim(); F.model = F.model.trim(); F.remarks = F.remarks.trim();
+    if (!F.rack) F.errors.rack = 1;
+    if (!F.level) F.errors.level = 1;
+    if (!F.desc) F.errors.desc = 1;
+    if (Object.keys(F.errors).length) {
+      var y = window.scrollY; render({ keepScroll: true }); window.scrollTo(0, y);
+      var first = $('.err-msg');
+      if (first) first.scrollIntoView({ block: 'center' });
+      return;
+    }
+    var fields = { rack: F.rack, level: F.level, box: F.box || null, comp: F.comp || null, desc: F.desc, pn: F.pn, model: F.model,
+      qty: F.qty, unit: F.unit, min: F.min, status: F.qty === null && !F.statusTouched ? 'Not counted' : F.status, remarks: F.remarks };
+    var editing = F.editId ? byId(F.editId) : null;
+    if (F.editId && !editing) { toast('This part is no longer in the sheet.'); F = null; tab('racks'); return; }
+    var btn = $('#f-submit');
+    var label = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+    var req = editing ? call('update', { id: editing.id, rev: editing.rev, fields: fields }) : call('add', { part: fields });
+    req.then(function (res) {
+      applyPart(res.part);
+      addLogs(res.log);
+      saveCache();
+      F = null;
+      toast((editing ? 'Saved to ' : 'Part saved to ') + locCode(res.part));
+      nav.stack = [];
+      nav.cur = { name: 'racks', params: {} };
+      locate(res.part.id);
+    }, function (err) {
+      if (btn) { btn.disabled = false; btn.textContent = label; }
+      if (err.conflict && err.part) {
+        applyPart(err.part);
+        saveCache();
+        dialog('Someone else changed this part', '<p>' + esc(err.part.by || 'Someone') + ' updated it while you were editing. Your edit was not saved yet.</p>',
+          [{ label: 'Save mine instead', cls: 'primary', fn: function () { submitForm(); } }, { label: 'Cancel' }]);
+        return;
+      }
+      toast(failMsg(err, editing ? 'Edit' : 'New part'));
+    });
+  }
+
+  /* ---- Records ---- */
+  VIEWS.records = {
+    html: function () {
+      var c = counts(S.parts);
+      var stat = function (k, label, s) {
+        return '<button data-act="filter-go" data-s="' + s + '"><b class="' + (s ? 'st-' + SCLS[s] : '') + '">' + k + '</b><span>' + label + '</span></button>';
+      };
+      var acts = S.log.slice(0, 40).map(function (a) {
+        var what = a.action === 'Quantity' ? 'Quantity ' + a.from + ' to ' + a.to
+          : a.action === 'Availability' ? 'Availability: ' + a.to
+          : a.action === 'Moved' ? 'Moved from ' + a.from + ' to ' + a.to
+          : a.action === 'Added' ? 'Added' + (a.to ? ', ' + a.to : '')
+          : a.action === 'Edited' ? 'Edited ' + a.to
+          : a.action === 'Deleted' ? 'Deleted'
+          : a.action === 'Import' ? 'Excel import: ' + a.to
+          : a.action + (a.to !== '' ? ': ' + a.to : '');
+        var bar = a.action === 'Deleted' ? 'out' : a.action === 'Added' || a.action === 'Restored' ? 'ok' : 'nc';
+        return '<div class="item"' + (a.id && byId(a.id) ? ' data-act="part" data-id="' + esc(a.id) + '" role="button" tabindex="0"' : '') + '><span class="bar ' + bar + '"></span><span style="min-width:0">' +
+          '<span class="desc" style="font-size:15px">' + esc(what) + '</span>' +
+          '<span class="sub">' + (a.loc ? tape(a.loc, 'small') : '') + '<span>' + esc(a.desc) + '</span></span>' +
+          '<span class="when">' + esc(fmtTime(a.t)) + (a.by ? ', ' + esc(a.by) : '') + '</span></span></div>';
+      }).join('');
+      var status = S.sync.ok
+        ? '<p class="conn ok"><span class="st st-ok">Connected</span> to <b>' + esc(S.sync.sheetName || 'Google Sheet') + '</b>. Last synced ' + esc(fmtTime(S.sync.at)) + '.</p>'
+        : '<p class="conn"><span class="st st-out">Not synced</span> ' + esc(S.sync.error || 'Waiting for Google Sheets.') + (S.sync.at ? ' Showing the list from ' + esc(fmtTime(S.sync.at)) + '.' : '') + '</p>';
+      return '<header class="topbar"><div class="topbar-row"><h1>Records</h1></div></header><div class="wrap">' +
+        '<div class="stats">' + stat(c.total, 'All parts', '') + stat(c['Out of stock'], 'Out of stock', 'Out of stock') + stat(c['Low stock'], 'Low stock', 'Low stock') +
+        stat(c['On order'], 'On order', 'On order') + stat(c['Available'], 'Available', 'Available') + stat(c['Not counted'], 'Not counted', 'Not counted') + '</div>' +
+        '<h2 class="section-title">Google Sheet</h2><div class="panel-box">' + status +
+        (S.sync.invalid ? '<p class="warn" style="margin:0 0 10px">' + plural(S.sync.invalid, 'row') + ' in the Parts tab have no rack, level or description, so the app hides them. Fix them in the sheet.</p>' : '') +
+        '<div class="row-btns stack" style="margin-top:0"><button class="btn primary" data-act="sync">' + I.sync + 'Sync now</button>' +
+        (S.sync.sheetUrl ? '<a class="btn ghost" href="' + esc(S.sync.sheetUrl) + '" target="_blank" rel="noopener">' + I.excel + 'Open the Google Sheet</a>' : '') +
+        '<button class="btn ghost" data-act="tab" data-tab="connect">' + I.link + 'Change connection</button></div></div>' +
+        '<h2 class="section-title">Your name</h2><div class="panel-box"><p>Saved with every change you make, so the team can see who updated what.</p>' +
+        '<label class="field"><input id="uname" value="' + esc(S.settings.name) + '" placeholder="Name or staff number" autocomplete="name"></label></div>' +
+        '<h2 class="section-title">Excel report</h2><div class="panel-box"><p>The Excel file has the full parts list, a restock list, a summary by rack and the change history.</p>' +
+        '<div class="row-btns stack" style="margin-top:0"><button class="btn ghost" data-act="export">' + I.excel + 'Export to Excel</button>' +
+        '<button class="btn ghost" data-act="share-restock">' + I.share + 'Send restock list as text</button>' +
+        '<button class="btn ghost" data-act="import">' + I.upload + 'Import from Excel into the sheet</button></div>' +
+        '<input type="file" id="importfile" accept=".xlsx,' + XMIME + '" hidden></div>' +
+        '<h2 class="section-title">Rack display</h2><div class="panel-box"><p>Where level A sits on the real compactor.</p><div class="toggle" role="group" aria-label="Level order">' +
+        '<button data-act="level-order" data-v="top" aria-pressed="' + (S.settings.levelOrder !== 'bottom') + '">Level A at top</button>' +
+        '<button data-act="level-order" data-v="bottom" aria-pressed="' + (S.settings.levelOrder === 'bottom') + '">Level A at bottom</button></div></div>' +
+        '<h2 class="section-title">Recent changes</h2>' + (acts ? '<div class="list act-list" style="border:1px solid var(--line);border-radius:6px;overflow:hidden">' + acts + '</div>' : '<div class="panel-box"><p style="margin:0">No changes yet. Updates from every phone show here after a sync.</p></div>') +
+        '<p class="hint" style="text-align:center;margin-top:20px">SMT Compactor Listing ' + VERSION + '</p></div>';
+    },
+    mount: function () {
+      var u = $('#uname');
+      u.addEventListener('input', function () { S.settings.name = u.value.trim(); saveCfg(); });
+      $('#importfile').addEventListener('change', function (e) { var f = e.target.files[0]; e.target.value = ''; if (f) importFile(f); });
+    }
+  };
+
+  /* ---- Connect ---- */
+  VIEWS.connect = {
+    html: function (pr) {
+      return '<header class="topbar"><div class="topbar-row">' + (connected() ? '<button class="icon-btn" data-act="tab" data-tab="records" aria-label="Back">' + I.back + '</button>' : '') +
+        '<h1>Connect to Google Sheets</h1></div></header>' +
+        '<form class="wrap form" id="connform" novalidate>' +
+        '<div class="hero-tape">' + tape('SMT COMPACTOR', 'big') + '<p>The parts list lives in a shared Google Sheet. Ask the sheet owner for ' + (HOSTED ? 'the access key.' : 'the app link and the access key.') + '</p></div>' +
+        (HOSTED ? '' : '<label class="field"><span class="lbl">Web App URL</span><input id="c-url" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://script.google.com/macros/s/…/exec" value="' + esc(S.conn.url) + '"></label>') +
+        '<label class="field"><span class="lbl">Access key</span><input id="c-key" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="12 letters and numbers" value="' + esc(S.conn.key) + '"></label>' +
+        '<label class="field"><span class="lbl">Your name or staff no. <span class="opt">(shown on your changes)</span></span><input id="c-name" autocomplete="name" value="' + esc(S.settings.name) + '"></label>' +
+        '<div id="c-err" role="alert"></div>' +
+        '<button type="submit" class="btn primary block" id="c-go">Connect</button>' +
+        (connected() ? '<button type="button" class="btn ghost block danger" data-act="disconnect">Disconnect this phone</button>' : '') +
+        '<p class="hint">The app keeps a copy of the list on this device, so you can still look up parts when the connection drops. Changes need a connection.</p></form>';
+    },
+    mount: function () {
+      $('#connform').addEventListener('submit', function (ev) { ev.preventDefault(); connectNow(); });
+    }
+  };
+  function connectNow() {
+    var url = HOSTED ? '' : ($('#c-url').value || '').trim();
+    var key = ($('#c-key').value || '').trim().toUpperCase();
+    var name = ($('#c-name').value || '').trim();
+    var err = $('#c-err');
+    var show = function (m) { err.innerHTML = '<div class="err-msg" style="margin:0">' + esc(m) + '</div>'; };
+    if (!HOSTED && !/^https:\/\/script\.google\.com\/(a\/macros\/[^/]+\/|macros\/)s\/[\w-]+\/(exec|dev)\/?$/.test(url)) {
+      show('Paste the Web App URL from Apps Script. It starts with https://script.google.com/macros/s/ and ends with /exec.');
+      return;
+    }
+    if (/\/dev\/?$/.test(url)) { show('This is a test link (/dev). Use the deployment link that ends with /exec.'); return; }
+    if (!key) { show('Enter the access key.'); return; }
+    var old = { url: S.conn.url, key: S.conn.key };
+    S.conn = { url: url.replace(/\/$/, ''), key: key };
+    S.settings.name = name;
+    var btn = $('#c-go');
+    btn.disabled = true; btn.textContent = 'Connecting…';
+    call('load').then(function (res) {
+      applyLoad(res);
+      saveCfg();
+      tab('racks');
+      toast('Connected to ' + (res.sheetName || 'Google Sheet') + ': ' + plural(res.parts.length, 'part'));
+    }, function (e) {
+      S.conn = old;
+      btn.disabled = false; btn.textContent = 'Connect';
+      show(e.auth ? 'Wrong access key. Check it in the sheet: SMT Compactor > Show access key.' : (e.error || 'Could not connect.'));
+    });
+  }
+
+  /* ================= locate ================= */
+  function locate(id) {
+    var p = byId(id);
+    if (!p) return;
+    closeAllSheets();
+    go('rack', { rack: p.rack, hl: { rack: p.rack, level: p.level, box: p.box, id: p.id } });
+  }
+
+  /* ================= Excel ================= */
+  var HEAD = ['Location', 'Rack', 'Level', 'Box', 'Compartment', 'MC Model', 'Description', 'Part No', 'Qty', 'Unit', 'Reorder At', 'Availability', 'Remarks', 'Last Updated', 'Updated By', 'ID'];
+  function sortedParts() {
+    return S.parts.slice().sort(function (a, b) {
+      return a.rack - b.rack || a.level.localeCompare(b.level) || (a.box || 0) - (b.box || 0) ||
+        COMPS.indexOf(a.comp) - COMPS.indexOf(b.comp) || a.desc.localeCompare(b.desc);
+    });
+  }
+  function buildWorkbook() {
+    var parts = sortedParts();
+    var rows = [HEAD].concat(parts.map(function (p) {
+      return [locCode(p), p.rack, p.level, p.box || '', p.comp || '', p.model || '', p.desc, p.pn || '',
+        p.qty === null ? '' : p.qty, p.qty === null ? '' : (p.unit || 'Pcs'), p.min === null || p.min === undefined ? '' : p.min,
+        p.status, p.remarks || '', p.updated ? fmtTime(p.updated) : '', p.by || '', p.id];
+    }));
+    var sum = [['Rack', 'Level', 'Boxes', 'Parts', 'Available', 'Low stock', 'Out of stock', 'On order', 'Not counted']];
+    racksList().forEach(function (r) {
+      levelsOf(r).slice().sort().forEach(function (l) {
+        var ps = S.parts.filter(function (p) { return p.rack === r && p.level === l; });
+        var c = counts(ps);
+        sum.push([r, l, boxesOf(r, l).filter(function (k) { return k !== '0'; }).length, ps.length, c['Available'], c['Low stock'], c['Out of stock'], c['On order'], c['Not counted']]);
+      });
+    });
+    var restock = [['Location', 'Description', 'Part No', 'Qty', 'Reorder At', 'Availability', 'Remarks']].concat(
+      parts.filter(function (p) { return p.status === 'Out of stock' || p.status === 'Low stock' || p.status === 'On order'; }).map(function (p) {
+        return [locCode(p), p.desc, p.pn || '', p.qty === null ? '' : p.qty, p.min === null ? '' : p.min, p.status, p.remarks || ''];
+      }));
+    var hist = [['Time', 'Change', 'Location', 'Description', 'Part No', 'From', 'To', 'By']].concat(S.log.map(function (a) {
+      return [fmtTime(a.t), a.action, a.loc, a.desc, a.pn || '', a.from === null ? '' : a.from, a.to === null ? '' : a.to, a.by];
+    }));
+    return XLSXLite.write([
+      { name: 'Parts', rows: rows, widths: [12, 6, 6, 5, 12, 26, 46, 22, 7, 7, 10, 13, 30, 18, 16, 10] },
+      { name: 'Restock', rows: restock, widths: [12, 46, 22, 7, 10, 13, 30] },
+      { name: 'Summary by rack', rows: sum, widths: [7, 7, 7, 7, 10, 10, 12, 10, 12] },
+      { name: 'Change history', rows: hist, widths: [18, 13, 12, 46, 22, 14, 14, 16] }
+    ]);
+  }
+  function exportXlsx(share) {
+    var u8;
+    try { u8 = buildWorkbook(); } catch (e) { toast('Export failed: ' + e.message); return; }
+    saveBytes('SMT_Compactor_Listing_' + stamp() + '.xlsx', u8, XMIME, share);
+  }
+  function restockText() {
+    var list = sortedParts().filter(function (p) { return p.status === 'Out of stock' || p.status === 'Low stock' || p.status === 'On order'; });
+    if (!list.length) return null;
+    var lines = ['*SMT Compactor restock list* (' + fmtTime(new Date().toISOString()) + ')', ''];
+    ['Out of stock', 'Low stock', 'On order'].forEach(function (s) {
+      var g = list.filter(function (p) { return p.status === s; });
+      if (!g.length) return;
+      lines.push('*' + s + ' (' + g.length + ')*');
+      g.forEach(function (p, i) {
+        lines.push((i + 1) + '. ' + p.desc + (p.pn ? ' [' + p.pn + ']' : '') + ' at ' + locCode(p) + (p.qty !== null ? ', qty ' + p.qty + ' ' + (p.unit || '') : ''));
+      });
+      lines.push('');
+    });
+    if (S.settings.name) lines.push('Sent by ' + S.settings.name);
+    return lines.join('\n').trim();
+  }
+
+  function pickCol(head, names) {
+    for (var i = 0; i < head.length; i++) {
+      var h = norm(head[i]).replace(/[^a-z]/g, '');
+      if (names.indexOf(h) >= 0) return i;
+    }
+    return -1;
+  }
+  function parseImport(u8) {
+    var wb = XLSXLite.read(u8);
+    var name = wb.names.indexOf('Parts') >= 0 ? 'Parts' : wb.names[0];
+    var rows = wb.rows(name);
+    var hi = -1;
+    for (var i = 0; i < Math.min(rows.length, 15); i++) {
+      var h = (rows[i] || []).map(function (x) { return norm(x).replace(/[^a-z]/g, ''); });
+      if (h.indexOf('rack') >= 0 && (h.indexOf('description') >= 0 || h.indexOf('item') >= 0)) { hi = i; break; }
+    }
+    if (hi < 0) throw new Error('Could not find the header row. The sheet needs at least "Rack", "Level" and "Description" columns, like the file this app exports.');
+    var head = rows[hi];
+    var col = {
+      id: pickCol(head, ['id']), rack: pickCol(head, ['rack']), level: pickCol(head, ['level']), box: pickCol(head, ['box']),
+      comp: pickCol(head, ['compartment', 'comp']), model: pickCol(head, ['mcmodel', 'model', 'machine']),
+      desc: pickCol(head, ['description', 'item', 'itemdescription']), pn: pickCol(head, ['partno', 'partnumber', 'pn']),
+      qty: pickCol(head, ['qty', 'quantity']), unit: pickCol(head, ['unit']), min: pickCol(head, ['reorderat', 'minqty', 'min']),
+      status: pickCol(head, ['availability', 'status']), remarks: pickCol(head, ['remarks', 'remark', 'notes'])
+    };
+    var get = function (r, k) { return col[k] >= 0 ? r[col[k]] : null; };
+    var ok = [], skipped = 0;
+    rows.slice(hi + 1).forEach(function (r) {
+      if (!r || !r.length) return;
+      var rack = parseInt(get(r, 'rack'), 10);
+      var level = String(get(r, 'level') || '').trim().toUpperCase();
+      var desc = String(get(r, 'desc') || '').trim();
+      if (!rack || LEVELS.indexOf(level) < 0 || !desc) { if (desc || rack) skipped++; return; }
+      var box = parseInt(get(r, 'box'), 10) || null;
+      var comp = String(get(r, 'comp') || '').toLowerCase().replace(/[()\s]/g, '').replace('ⅰ', 'i').replace('ⅱ', 'ii').replace('ⅲ', 'iii').replace('ⅳ', 'iv');
+      comp = COMPS.indexOf(comp) >= 0 ? comp : null;
+      var qty = numOrNull(get(r, 'qty'));
+      var min = numOrNull(get(r, 'min'));
+      var st = String(get(r, 'status') || '').trim();
+      var stMatch = STATUSES.filter(function (s) { return norm(s) === norm(st); })[0];
+      ok.push({ id: String(get(r, 'id') || '').trim() || null, rack: rack, level: level, box: box, comp: comp,
+        model: String(get(r, 'model') || '').trim(), desc: desc, pn: String(get(r, 'pn') == null ? '' : get(r, 'pn')).trim(),
+        qty: qty, unit: String(get(r, 'unit') || '').trim() || 'Pcs', min: min,
+        status: stMatch || suggestStatus(qty, min, null), remarks: String(get(r, 'remarks') || '').trim() });
+    });
+    return { rows: ok, skipped: skipped };
+  }
+  function importFile(file) {
+    var fr = new FileReader();
+    fr.onload = function () {
+      var res;
+      try { res = parseImport(new Uint8Array(fr.result)); } catch (e) { dialog('Import failed', '<p>' + esc(e.message) + '</p>', [{ label: 'OK', cls: 'primary' }]); return; }
+      if (!res.rows.length) { dialog('Nothing to import', '<p>No part rows were found in this file.</p>', [{ label: 'OK', cls: 'primary' }]); return; }
+      var match = res.rows.filter(function (r) { return r.id && byId(r.id); }).length;
+      dialog('Import ' + plural(res.rows.length, 'part') + ' into the Google Sheet?',
+        '<p>' + match + ' match parts already in the sheet and will be updated if they changed. ' + (res.rows.length - match) + ' will be added as new parts.' +
+        (res.skipped ? ' ' + plural(res.skipped, 'row') + ' without rack, level or description will be skipped.' : '') + '</p>' +
+        '<p>This changes the shared list for everyone.</p>',
+        [{ label: 'Update and add', cls: 'primary', fn: function () { applyImport(res.rows, false); } },
+          { label: 'Replace whole list', cls: 'ghost danger', fn: function () {
+            dialog('Replace the whole list?', '<p>All ' + plural(S.parts.length, 'part') + ' in the Google Sheet will be replaced by the ' + res.rows.length + ' in this file, for everyone. Google Sheets keeps old versions under File > Version history.</p>',
+              [{ label: 'Replace', cls: 'primary', fn: function () { applyImport(res.rows, true); } }, { label: 'Cancel' }]);
+          } },
+          { label: 'Cancel' }]);
+    };
+    fr.onerror = function () { toast('Could not read the file.'); };
+    fr.readAsArrayBuffer(file);
+  }
+  function applyImport(rows, replace) {
+    toast('Importing into Google Sheets…');
+    call('import', { rows: rows, mode: replace ? 'replace' : 'merge' }).then(function (res) {
+      sync(true).then(function () {
+        toast('Import done: ' + res.updated + ' updated, ' + res.added + ' added' + (res.skipped ? ', ' + res.skipped + ' skipped' : ''));
+      });
+    }, function (err) { toast(failMsg(err, 'Import')); });
+  }
+
+  /* ================= actions ================= */
+  var A = {
+    'tab': function (d) { tab(d.tab); },
+    'back': function () { back(); },
+    'rack': function (d) { go('rack', { rack: Number(d.rack) }); },
+    'rack-step': function (d) { go('rack', { rack: Number(d.rack) }, { replace: true }); },
+    'box': function (d) { openBox(Number(d.rack), d.level, d.box); },
+    'part': function (d) { openPart(d.id); },
+    'locate': function (d, el, e) { e.stopPropagation(); locate(d.id); },
+    'close-sheet': function () { closeSheet(); },
+    'copy': function (d) { copyText(d.text, 'Part number copied'); },
+    'qty-step': function (d) {
+      var s = topPartSheet();
+      if (!s) return;
+      var dr = s.def.draft;
+      var q = (dr.qty === null ? 0 : dr.qty) + Number(d.d);
+      dr.qty = Math.max(0, q);
+      dr.status = suggestStatus(dr.qty, dr.min, dr.status);
+      $('#ps-qty', s.panel).value = dr.qty;
+      s.def.sync(s.panel);
+    },
+    'status-pick': function (d) {
+      var s = topPartSheet();
+      if (!s) return;
+      s.def.draft.status = d.s;
+      s.def.sync(s.panel);
+    },
+    'save-part': function (d) { savePart(d.id); },
+    'edit-part': function (d) { closeAllSheets(); F = null; go('add', { editId: d.id }); },
+    'delete-part': function (d) {
+      var p = byId(d.id);
+      if (!p) return;
+      dialog('Delete this part?', '<p>' + esc(p.desc) + (p.pn ? ' (' + esc(p.pn) + ')' : '') + ' at ' + esc(locCode(p)) + ' will be removed from the Google Sheet for everyone.</p>', [
+        { label: 'Delete', cls: 'primary', fn: function () {
+          call('delete', { id: p.id, rev: p.rev }).then(function (res) {
+            S.parts = S.parts.filter(function (x) { return x.id !== p.id; });
+            addLogs(res.log);
+            saveCache();
+            closeSheet();
+            refresh();
+            toast('Part deleted', { label: 'Undo', fn: function () {
+              call('add', { part: p, restore: true }).then(function (r2) {
+                applyPart(r2.part); addLogs(r2.log); saveCache(); refresh(); toast('Part restored');
+              }, function (err) { toast(failMsg(err, 'Undo')); });
+            } });
+          }, function (err) {
+            if (err.conflict && err.part) { applyPart(err.part); saveCache(); refresh(); toast('Someone changed this part just now. Check it, then delete again if needed.'); return; }
+            toast(failMsg(err, 'Delete'));
+          });
+        } },
+        { label: 'Cancel' }]);
+    },
+    'add-here': function (d) {
+      closeAllSheets();
+      F = null;
+      go('add', { preset: { rack: Number(d.rack), level: d.level || null, box: d.box && d.box !== '0' ? Number(d.box) : null } });
+    },
+    'add-from-search': function () {
+      var q = SQ.q.trim();
+      var looksPn = /\d/.test(q) && !/\s/.test(q);
+      F = null;
+      go('add', { preset: looksPn ? { pn: q.toUpperCase() } : { desc: q } });
+    },
+    'pick': function (d) {
+      var v = d.v;
+      if (d.f === 'rack') { F.rack = Number(v); F.errors.rack = 0; }
+      if (d.f === 'level') { F.level = v; F.errors.level = 0; }
+      if (d.f === 'box') F.box = Number(v) || null;
+      if (d.f === 'comp') F.comp = v || null;
+      var y = window.scrollY;
+      render({ keepScroll: true });
+      window.scrollTo(0, y);
+    },
+    'f-status': function (d) {
+      F.status = d.s; F.statusTouched = true;
+      $$('#f-seg button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.s === F.status)); });
+      var h = $('#f-sthint'); if (h) h.textContent = '';
+    },
+    'cancel-form': function () { F = null; if (nav.stack.length) back(); else tab('racks'); },
+    'filter': function (d) { SQ.status = SQ.status === d.s && d.s ? '' : d.s; SQ.all = !d.s; SQ.limit = 120; VIEWS.search.update(); },
+    'filter-go': function (d) { SQ.status = d.s; SQ.all = !d.s; SQ.q = ''; SQ.rack = 0; SQ.limit = 120; closeAllSheets(); nav.stack = []; nav.cur = { name: 'search', params: { noFocus: true } }; render({}); },
+    'clear-q': function () { SQ.q = ''; SQ.all = false; var q = $('#q'); q.value = ''; q.focus(); $('[data-act="clear-q"]').hidden = true; VIEWS.search.update(); },
+    'more': function () { SQ.limit += 120; VIEWS.search.update(); },
+    'goto-loc': function (d) {
+      var r = Number(d.rack);
+      go('rack', { rack: r, hl: d.box || boxesOf(r, d.level).length === 1 ? { rack: r, level: d.level, box: d.box ? Number(d.box) : (Number(boxesOf(r, d.level)[0]) || null) } : null });
+    },
+    'export': function () { exportXlsx(false); },
+    'export-share': function () { exportXlsx(true); },
+    'share-restock': function () {
+      var t = restockText();
+      if (!t) { toast('Nothing to restock. No parts are out of stock, low or on order.'); return; }
+      shareText(t);
+    },
+    'import': function () { $('#importfile').click(); },
+    'level-order': function (d) { S.settings.levelOrder = d.v; saveCfg(); render({ keepScroll: true }); },
+    'sync': function () { sync(false); },
+    'disconnect': function () {
+      dialog('Disconnect this phone?', '<p>The saved link, key and offline copy are removed from this device. The Google Sheet is not changed.</p>', [
+        { label: 'Disconnect', cls: 'primary', fn: function () {
+          S.conn = { url: '', key: '' }; S.parts = []; S.layout = {}; S.log = []; S.sync.at = null; S.sync.ok = false;
+          saveCfg(); try { localStorage.removeItem(CACHE_KEY); } catch (e) { /* ignore */ }
+          tab('connect');
+        } }, { label: 'Cancel' }]);
+    },
+    'dlg': function (d) { if (dialogResolve) dialogResolve(Number(d.i)); },
+    'toast-action': function (d, el) { var t = el.closest('.toast'); var fn = t && t._fn; if (t) t.remove(); if (fn) fn(); }
+  };
+
+  document.addEventListener('click', function (e) {
+    var el = e.target.closest('[data-act]');
+    if (!el) return;
+    var fn = A[el.dataset.act];
+    if (!fn) return;
+    e.preventDefault();
+    fn(el.dataset, el, e);
+  });
+  document.addEventListener('keydown', function (e) {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[role="button"][data-act]')) { e.preventDefault(); e.target.click(); }
+  });
+
+  /* ================= boot ================= */
+  function boot() {
+    var cfg = lsGet(CFG_KEY) || {};
+    S.settings = Object.assign({ name: '', levelOrder: 'top' }, cfg.settings || {});
+    S.conn = Object.assign({ url: '', key: '' }, cfg.conn || {});
+    var cache = lsGet(CACHE_KEY);
+    if (cache && cache.parts) {
+      S.parts = cache.parts;
+      S.layout = cache.layout || {};
+      S.log = cache.log || [];
+      S.sync.at = cache.at || null;
+      S.sync.sheetUrl = cache.sheetUrl || '';
+      S.sync.sheetName = cache.sheetName || '';
+    }
+    view = $('#view');
+    var bar = document.createElement('div');
+    bar.className = 'syncbar';
+    bar.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(bar);
+    var tb = document.createElement('nav');
+    tb.className = 'tabbar';
+    tb.setAttribute('aria-label', 'Main');
+    tb.innerHTML = [['racks', 'Racks', I.racks], ['search', 'Search', I.search], ['add', 'Add part', I.add], ['records', 'Records', I.records]].map(function (t) {
+      return '<button data-act="tab" data-tab="' + t[0] + '">' + t[2] + '<span>' + t[1] + '</span></button>';
+    }).join('');
+    document.body.appendChild(tb);
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible' && connected() && Date.now() - lastSync > 30000) sync(true);
+    });
+    setInterval(function () {
+      if (document.visibilityState === 'visible' && connected() && Date.now() - lastSync > 110000) sync(true);
+    }, 30000);
+    if (!connected()) { nav.cur = { name: 'connect', params: {} }; render({}); return; }
+    render({});
+    sync(true);
+  }
+  window.__app = { state: function () { return S; }, sync: sync, locate: function (id) { locate(id); }, buildWorkbook: function () { return buildWorkbook(); } };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+})();
+</script>
+</body>
+</html>
